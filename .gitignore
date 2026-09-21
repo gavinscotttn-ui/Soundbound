@@ -1,0 +1,35 @@
+# Gradle
+.gradle/
+build/
+*/build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+
+# IDE
+.idea/
+*.iml
+.kotlin/
+.fleet/
+*.hprof
+
+# Android
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+captures/
+.cxx/
+
+# Desktop packaging output
+*/release/
+
+# macOS / Windows litter
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Voice models are large and are never committed
+voices/*.onnx
+voices/*.onnx.json
+*.onnx
+*.onnx.data
