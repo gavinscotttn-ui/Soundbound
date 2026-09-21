@@ -24,6 +24,7 @@ dependencies {
     api(libs.kotlinx.serialization.json)
     api(libs.okio)
     implementation(libs.jsoup)
+    api(libs.okhttp)
 
     // ONNX Runtime is `compileOnly` here: the desktop app pulls in the JVM build and the
     // Android app pulls in `onnxruntime-android`. Both expose the identical `ai.onnxruntime`

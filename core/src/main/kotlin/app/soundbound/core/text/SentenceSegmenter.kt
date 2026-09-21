@@ -189,8 +189,8 @@ class SentenceSegmenter(private val options: SegmentationOptions = SegmentationO
         var pending: Sentence? = null
 
         sentences.forEach { sentence ->
-            val merged = if (pending != null) {
-                val previous = pending!!
+            val previous = pending
+            val merged = if (previous != null) {
                 Sentence(
                     start = previous.start,
                     end = sentence.end,
