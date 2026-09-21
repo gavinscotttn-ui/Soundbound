@@ -31,6 +31,10 @@ dependencies {
     // Java API, so :core compiles once against the contract and runs on either.
     compileOnly(libs.onnxruntime)
 
+    // A pure-Java port of LAME, so exporting to MP3 works identically on the desktop and on
+    // Android with no native library to ship for four architectures.
+    implementation(libs.jump3r)
+
     testImplementation(libs.onnxruntime)
     testImplementation(libs.junit.jupiter)
     testImplementation(libs.kotlinx.coroutines.test)

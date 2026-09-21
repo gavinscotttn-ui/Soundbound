@@ -11,6 +11,12 @@ import app.soundbound.core.model.BookId
 import app.soundbound.core.model.ChapterIndex
 import app.soundbound.core.model.HighlightColour
 import app.soundbound.core.model.ReadingPosition
+import app.soundbound.core.export.AudiobookExporter
+import app.soundbound.core.export.ExportGrouping
+import app.soundbound.core.export.ExportFormat
+import app.soundbound.core.export.ExportProgress
+import app.soundbound.core.export.ExportRequest
+import app.soundbound.core.export.Mp3Settings
 import app.soundbound.core.player.AudioSink
 import app.soundbound.core.player.ReadAloudController
 import app.soundbound.core.prefs.SettingsRepository
@@ -96,6 +102,9 @@ class Soundbound(
     )
 
     private val openLock = Mutex()
+
+    /** Renders books to MP3 or WAV. Needs no network and no permission beyond a folder to write to. */
+    val exporter = AudiobookExporter(voiceRegistry)
 
     init {
         refreshVoices()
@@ -226,6 +235,77 @@ class Soundbound(
 
     fun dismissMessage() {
         if (_state.value.message != null) _state.value = _state.value.copy(message = null)
+    }
+
+    // ---------------------------------------------------------------- export
+
+    /**
+     * Renders the open book — or a selection of its chapters — to audio files.
+     *
+     * Deliberately takes the already-open [BookSource] rather than re-opening the file: a long PDF
+     * costs real time to parse, and the reader has already paid for it.
+     *
+     * @param chapters the chapters to export, or empty for the whole book.
+     */
+    fun exportOpenBook(
+        chapters: List<ChapterIndex> = emptyList(),
+        outputDirectory: File,
+        format: ExportFormat = ExportFormat.MP3,
+        grouping: ExportGrouping = ExportGrouping.PER_CHAPTER,
+        mp3Settings: Mp3Settings = Mp3Settings(),
+        voice: TtsVoice? = null,
+    ): kotlinx.coroutines.flow.Flow<ExportProgress> {
+        val id = _state.value.activeBookId
+        val entry = id?.let { library.entry(it) }
+        val source = reader.openSource
+        val chosenVoice = voice
+            ?: entry?.voiceId?.let { voiceId -> _state.value.voices.firstOrNull { it.id == voiceId } }
+            ?: _state.value.voices.firstOrNull()
+
+        if (entry == null || source == null) {
+            return kotlinx.coroutines.flow.flowOf(
+                ExportProgress.Failed("Open a book before exporting it."),
+            )
+        }
+        if (chosenVoice == null) {
+            return kotlinx.coroutines.flow.flowOf(
+                ExportProgress.Failed("Install a voice before exporting. Open Voices to choose one."),
+            )
+        }
+
+        val artwork = entry.book.coverImageRef
+            ?.let { File(it) }
+            ?.takeIf { it.isFile }
+            ?.let { runCatching { it.readBytes() }.getOrNull() }
+
+        return exporter.export(
+            source = source,
+            request = ExportRequest(
+                book = entry.book,
+                chapters = chapters,
+                outputDirectory = outputDirectory,
+                format = format,
+                grouping = grouping,
+                mp3Settings = mp3Settings,
+                voice = chosenVoice,
+                speechParams = settings.current.speech.toSpeechParams()
+                    .copy(rate = entry.speechRate ?: settings.current.speech.rate)
+                    .coerced(),
+                planOptions = settings.current.speech.toPlanOptions(),
+                artwork = artwork,
+                artworkMimeType = guessImageMimeType(artwork),
+            ),
+        )
+    }
+
+    /** Sniffs the cover's own bytes: a PNG labelled as a JPEG is shown as a broken image. */
+    private fun guessImageMimeType(bytes: ByteArray?): String = when {
+        bytes == null || bytes.size < 4 -> "image/jpeg"
+        bytes[0] == 0x89.toByte() && bytes[1] == 'P'.code.toByte() -> "image/png"
+        bytes[0] == 0xFF.toByte() && bytes[1] == 0xD8.toByte() -> "image/jpeg"
+        bytes[0] == 'G'.code.toByte() && bytes[1] == 'I'.code.toByte() -> "image/gif"
+        bytes[0] == 'R'.code.toByte() && bytes[1] == 'I'.code.toByte() -> "image/webp"
+        else -> "image/jpeg"
     }
 
     // ---------------------------------------------------------------- annotations
