@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- SoundboundColours.Ink900. -->
+    <color name="window_background">#12100E</color>
+    <color name="splash_background">#12100E</color>
+</resources>

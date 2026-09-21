@@ -41,7 +41,7 @@ kotlin {
         }
 
         if (withAndroid) {
-            named("androidMain").dependencies {
+            getByName("androidMain").dependencies {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.core.ktx)
                 implementation(libs.kotlinx.coroutines.android)

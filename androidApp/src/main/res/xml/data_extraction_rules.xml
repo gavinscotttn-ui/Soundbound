@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="library.json" />
+        <include domain="file" path="settings.json" />
+        <exclude domain="file" path="voices" />
+        <exclude domain="file" path="books" />
+        <exclude domain="file" path="covers" />
+        <exclude domain="file" path="exports" />
+    </cloud-backup>
+    <device-transfer>
+        <!-- A direct device-to-device transfer can carry the books and voices too. -->
+        <include domain="file" path="." />
+        <exclude domain="file" path="exports" />
+    </device-transfer>
+</data-extraction-rules>

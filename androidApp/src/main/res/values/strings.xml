@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Soundbound</string>
+    <string name="playback_channel_name">Reading aloud</string>
+    <string name="playback_channel_description">Controls for the book being read to you</string>
+    <string name="notification_reading">Reading aloud</string>
+    <string name="action_play">Play</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_previous">Previous sentence</string>
+    <string name="action_next">Next sentence</string>
+</resources>

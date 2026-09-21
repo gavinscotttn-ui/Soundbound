@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches SoundboundColours.Paper50, so the window behind Compose is never a white flash. -->
+    <color name="window_background">#FDFBF7</color>
+    <color name="splash_background">#FDFBF7</color>
+    <color name="ic_launcher_background">#12100E</color>
+</resources>

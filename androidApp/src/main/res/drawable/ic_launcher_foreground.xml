@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The mark: an open book whose pages are a waveform. Drawn on the 108dp adaptive-icon canvas with
+  everything inside the central 66dp safe zone, so no launcher shape can clip it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- The open book. -->
+    <path
+        android:pathData="M54,38 C48,33 40,31.5 30,33 L30,74 C40,72.5 48,74 54,79 C60,74 68,72.5 78,74 L78,33 C68,31.5 60,33 54,38 Z"
+        android:strokeWidth="3.2"
+        android:strokeColor="#FFF3E6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- The spine. -->
+    <path
+        android:pathData="M54,38 L54,79"
+        android:strokeWidth="3.2"
+        android:strokeColor="#FFF3E6"
+        android:strokeLineCap="round" />
+
+    <!-- The waveform across both pages, in the amber reserved for the voice. -->
+    <path
+        android:pathData="M37,56 L37,56 M42,50 L42,62 M47,45 L47,67 M61,47 L61,65 M66,42 L66,70 M71,52 L71,60"
+        android:strokeWidth="3.4"
+        android:strokeColor="#E89B2C"
+        android:strokeLineCap="round" />
+</vector>

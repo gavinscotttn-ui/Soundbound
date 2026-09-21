@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!--
+      The library, the reading positions, the notes and the settings are worth backing up: they are
+      small and losing a reading position is genuinely annoying. Voice models are not — they are
+      tens of megabytes each and can be downloaded again — and nor are the imported book files.
+    -->
+    <include domain="file" path="library.json" />
+    <include domain="file" path="settings.json" />
+    <exclude domain="file" path="voices" />
+    <exclude domain="file" path="books" />
+    <exclude domain="file" path="covers" />
+    <exclude domain="file" path="exports" />
+</full-backup-content>

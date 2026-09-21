@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Only the export folder is shareable. Books and the library itself never leave the app. -->
+    <files-path name="exports" path="exports/" />
+    <cache-path name="shared" path="shared/" />
+    <external-files-path name="external_exports" path="exports/" />
+</paths>
