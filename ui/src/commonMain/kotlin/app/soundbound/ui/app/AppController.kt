@@ -313,7 +313,17 @@ class AppController(
             installJobs.remove(entry.key)?.cancel()
             ui.installing.remove(entry.key)
         },
-        onUninstall = { key ->
+        onUninstallVoice = { voice ->
+            scope.launch {
+                if (engine.uninstallVoice(voice)) {
+                    ui.installedKeys = engine.voiceInstaller.installedKeys()
+                    snackbar.showSnackbar("${voice.displayName} removed.")
+                } else {
+                    snackbar.showSnackbar("That voice belongs to the system and cannot be removed here.")
+                }
+            }
+        },
+        onUninstallCatalogue = { key ->
             if (engine.voiceInstaller.uninstall(key)) {
                 ui.installedKeys = ui.installedKeys - key
                 engine.refreshVoices()
@@ -415,7 +425,14 @@ class AppController(
 
     fun openExportSheet() {
         val chapterCount = engine.reader.state.value.chapterCount
-        if (ui.selectedChapters.isEmpty()) ui.selectAllChapters(chapterCount)
+        val bookId = engine.state.value.activeBookId
+
+        // A selection made for one book means nothing for the next, and silently exporting
+        // "chapters 3 to 7" of a different book would be a nasty surprise.
+        if (ui.selectionBookId != bookId || ui.selectedChapters.isEmpty()) {
+            ui.selectionBookId = bookId
+            ui.selectAllChapters(chapterCount)
+        }
         if (ui.exportDestination == null) ui.exportDestination = bridge.defaultExportDirectory()
         ui.exportProgress = null
         sheets.show(Sheet.EXPORT)

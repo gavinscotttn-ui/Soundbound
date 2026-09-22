@@ -55,6 +55,9 @@ class AppUiState {
     var isExporting by mutableStateOf(false)
     val selectedChapters = mutableStateListOf<Int>()
 
+    /** Which book the chapter selection belongs to, so it is not carried over to another. */
+    var selectionBookId by mutableStateOf<BookId?>(null)
+
     // ---------------------------------------------------------------- transient
     var pendingBookForDetails by mutableStateOf<BookId?>(null)
     var noteBeingShown by mutableStateOf<String?>(null)

@@ -162,6 +162,43 @@ class Soundbound(
         return voiceRegistry.bestVoiceFor(entry?.book?.metadata?.language, deviceLanguageTag)
     }
 
+    /**
+     * Removes an installed voice.
+     *
+     * Each engine stores a voice differently, so the removal has to match: a Piper voice is its
+     * own folder, while a Kokoro speaker is one file inside a pack shared with the other speakers
+     * — deleting the folder there would take forty voices with it. A device voice belongs to the
+     * system and is not Soundbound's to remove.
+     */
+    suspend fun uninstallVoice(voice: TtsVoice): Boolean {
+        val removed = when (voice.engine) {
+            app.soundbound.core.tts.EngineKind.PIPER -> {
+                val key = voice.id.value.removePrefix("piper/").substringBefore('#')
+                voiceInstaller.uninstall(key)
+            }
+
+            app.soundbound.core.tts.EngineKind.KOKORO -> {
+                val file = voice.installPath?.let(::File)
+                if (file != null && file.isFile) file.delete() else false
+            }
+
+            app.soundbound.core.tts.EngineKind.SYSTEM -> false
+        }
+
+        if (removed) {
+            // If the voice being removed is the one speaking, stop before the model disappears.
+            if (player.state.value.voice?.id == voice.id) {
+                player.pause()
+                voiceRegistry.unload()
+            }
+            if (settings.current.speech.voiceId == voice.id.value) {
+                settings.updateSpeech { it.copy(voiceId = null) }
+            }
+            refreshVoices()
+        }
+        return removed
+    }
+
     suspend fun selectVoice(voice: TtsVoice, forBookId: BookId? = null) {
         if (forBookId != null) {
             library.setBookVoice(forBookId, voice.id, library.entry(forBookId)?.speechRate)

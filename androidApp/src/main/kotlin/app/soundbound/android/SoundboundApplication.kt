@@ -16,6 +16,7 @@ import app.soundbound.core.tts.g2p.EspeakPhonemizer
 import app.soundbound.core.tts.g2p.Lexicon
 import app.soundbound.core.tts.g2p.LexiconPhonemizer
 import app.soundbound.core.tts.g2p.Phonemizer
+import app.soundbound.core.tts.onnx.KokoroTtsEngine
 import app.soundbound.core.tts.onnx.PiperTtsEngine
 import app.soundbound.core.tts.onnx.VoiceStore
 import app.soundbound.core.tts.system.SystemTtsEngine
@@ -66,11 +67,17 @@ class SoundboundApplication : Application() {
         systemTts = AndroidSystemTts(this)
         audioSink = AndroidAudioSink(scope)
 
+        // Kokoro first: where a pack is installed it is the most human-sounding of the three,
+        // and the registry sorts by quality within a language anyway.
+        val kokoro = KokoroTtsEngine(
+            store = voiceStore,
+            phonemizerProvider = { phonemizerFor(settings) },
+        )
         val piper = PiperTtsEngine(
             store = voiceStore,
             phonemizerProvider = { phonemizerFor(settings) },
         )
-        val registry = VoiceRegistry(listOf(piper, SystemTtsEngine(systemTts)))
+        val registry = VoiceRegistry(listOf(kokoro, piper, SystemTtsEngine(systemTts)))
 
         val opener = BookOpener.standard(AndroidPdfBackend.factory(this))
 

@@ -68,7 +68,10 @@ data class VoicesActions(
     val onPreviewVoice: (TtsVoice) -> Unit,
     val onInstall: (CatalogVoice) -> Unit,
     val onCancelInstall: (CatalogVoice) -> Unit,
-    val onUninstall: (String) -> Unit,
+    /** Removing an installed voice, which each engine stores differently. */
+    val onUninstallVoice: (TtsVoice) -> Unit,
+    /** Removing a voice-store entry, which is always a Piper folder. */
+    val onUninstallCatalogue: (String) -> Unit,
     val onRefreshCatalogue: () -> Unit,
     val onLanguageFilter: (String?) -> Unit,
     val onImportVoiceFile: () -> Unit,
@@ -136,10 +139,7 @@ fun VoicesScreen(
                     isPreviewing = voice.id == state.previewingVoiceId,
                     onSelect = { actions.onSelectVoice(voice) },
                     onPreview = { actions.onPreviewVoice(voice) },
-                    onUninstall = {
-                        voice.id.value.removePrefix("piper/").substringBefore('#')
-                            .let(actions.onUninstall)
-                    },
+                    onUninstall = { actions.onUninstallVoice(voice) },
                 )
                 HairlineDivider()
             }
@@ -225,7 +225,7 @@ fun VoicesScreen(
                 progress = state.installing[entry.key],
                 onInstall = { actions.onInstall(entry) },
                 onCancel = { actions.onCancelInstall(entry) },
-                onUninstall = { actions.onUninstall(entry.key) },
+                onUninstall = { actions.onUninstallCatalogue(entry.key) },
             )
             HairlineDivider()
         }

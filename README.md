@@ -16,8 +16,10 @@ line by line: Soundbound reconstructs the actual paragraphs from the page geomet
 columns, strips running heads and folios, and heals words broken across a line ending in a hyphen.
 
 **Speaks with a real voice, offline.** Hundreds of [Piper](https://github.com/rhasspy/piper)
-neural voices across more than forty languages, run locally through ONNX Runtime. Your device's
-own speech engine is there too, so a fresh install can speak before you have downloaded anything.
+neural voices across more than forty languages, run locally through ONNX Runtime, plus
+[Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) for the most human-sounding result of the lot.
+Your device's own speech engine is there too, so a fresh install can speak before you have
+downloaded anything. See [docs/voices.md](docs/voices.md).
 
 **Sounds like a narrator, not a speaking clock.** "£12.50" becomes *twelve pounds fifty*. "1984"
 becomes *nineteen eighty-four*. "Mr. Darcy" does not end a sentence, and neither does "3.14" or
@@ -145,6 +147,10 @@ Build flags, for working on one part without the rest:
 
 ## Honest limitations
 
+- **Kokoro support is written but not proven.** It is covered by tests for the tokeniser, the
+  configuration parser and the style-table reader, and it reads the vocabulary from each pack's own
+  configuration rather than assuming one — but it has not been run against a real model, because
+  the machine it was written on could not download one. Piper is the path exercised end to end.
 - **Scanned PDFs have no text layer.** Soundbound detects them and says so rather than reading
   silence. OCR is not included.
 - **espeak-ng is optional, not bundled.** Piper's models were trained on espeak-ng's phonemes, so
@@ -169,6 +175,7 @@ Soundbound is the application. It stands on:
 
 - [Piper](https://github.com/rhasspy/piper) voices (MIT), published by
   [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices)
+- [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) (Apache 2.0)
 - [ONNX Runtime](https://onnxruntime.ai) (MIT)
 - [Apache PDFBox](https://pdfbox.apache.org) and
   [PDFBox-Android](https://github.com/TomRoush/PdfBox-Android) (Apache 2.0)

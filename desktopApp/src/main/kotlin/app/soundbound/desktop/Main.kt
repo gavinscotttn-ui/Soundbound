@@ -30,6 +30,7 @@ import app.soundbound.core.tts.g2p.EspeakPhonemizer
 import app.soundbound.core.tts.g2p.Lexicon
 import app.soundbound.core.tts.g2p.LexiconPhonemizer
 import app.soundbound.core.tts.g2p.Phonemizer
+import app.soundbound.core.tts.onnx.KokoroTtsEngine
 import app.soundbound.core.tts.onnx.PiperTtsEngine
 import app.soundbound.core.tts.onnx.VoiceStore
 import app.soundbound.core.tts.system.SystemTtsEngine
@@ -124,12 +125,18 @@ private fun buildEngine(scope: CoroutineScope): Soundbound {
     val settings = SettingsRepository(paths.settingsFile)
     val voiceStore = VoiceStore(paths.voicesDirectory)
 
+    // Kokoro first: where a pack is installed it is the most human-sounding of the three, and
+    // the registry sorts by quality within a language anyway.
+    val kokoro = KokoroTtsEngine(
+        store = voiceStore,
+        phonemizerProvider = { phonemizerFor(settings, paths) },
+    )
     val piper = PiperTtsEngine(
         store = voiceStore,
         phonemizerProvider = { phonemizerFor(settings, paths) },
     )
     val systemTts = DesktopSystemTts(File(paths.root, "tts-cache"))
-    val registry = VoiceRegistry(listOf(piper, SystemTtsEngine(systemTts)))
+    val registry = VoiceRegistry(listOf(kokoro, piper, SystemTtsEngine(systemTts)))
 
     val opener = BookOpener.standard(PdfBoxBackend)
 

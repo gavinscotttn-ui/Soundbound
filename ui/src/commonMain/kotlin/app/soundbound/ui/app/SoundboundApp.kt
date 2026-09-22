@@ -148,7 +148,9 @@ fun SoundboundApp(
                     )
 
                     Destination.Notebook -> NotebookScreen(
-                        annotations = engine.library.allAnnotations(),
+                        // Keyed on the collected list: `allAnnotations` reads the repository
+                        // directly, which Compose cannot observe on its own.
+                        annotations = remember(libraryEntries) { engine.library.allAnnotations() },
                         onOpenBook = { id -> controller.openBook(id) },
                         onDeleteHighlight = { bookId, highlightId ->
                             engine.library.removeHighlight(bookId, highlightId)
@@ -244,9 +246,11 @@ fun SoundboundApp(
                     )
 
                     Sheet.BOOKMARKS -> BookmarksSheet(
-                        bookmarks = appState.activeBookId
-                            ?.let { engine.library.entry(it)?.bookmarks }
-                            .orEmpty(),
+                        bookmarks = remember(libraryEntries, appState.activeBookId) {
+                            appState.activeBookId
+                                ?.let { id -> engine.library.entry(id)?.bookmarks }
+                                .orEmpty()
+                        },
                         onSelect = { bookmark -> controller.goToBookmark(bookmark) },
                         onDelete = { bookmark ->
                             appState.activeBookId?.let { engine.library.removeBookmark(it, bookmark.id) }

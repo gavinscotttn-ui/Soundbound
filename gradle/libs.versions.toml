@@ -1,4 +1,8 @@
 [versions]
+# The Compose compiler plugin is versioned with Kotlin itself, so those two can never disagree.
+# Compose Multiplatform 1.12.0 is built against Kotlin 2.2.20; its metadata is forward compatible
+# and its Gradle plugin applies cleanly on this version. Should a future Compose Multiplatform
+# release object to it, dropping to "2.2.21" is the one-line fix.
 kotlin = "2.3.21"
 composeMultiplatform = "1.12.0"
 agp = "8.11.1"
