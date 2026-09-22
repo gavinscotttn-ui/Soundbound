@@ -259,6 +259,39 @@ class ReadAloudController(
         restartAt(unit?.index ?: 0)
     }
 
+    /**
+     * Jumps to a point in the *whole book*, given as a fraction from 0 to 1.
+     *
+     * This is what a scrubber drags — the one on the player screen, and the one the lock screen
+     * and a car head unit draw from the media session. Those all work in one continuous timeline,
+     * whereas the book is a list of chapters, so the fraction is turned into a character offset
+     * and then walked back onto a chapter.
+     *
+     * Chapter lengths are the parser's estimates, so the landing point is approximate in the same
+     * way the progress figure is. It lands on a sentence boundary regardless, because starting
+     * mid-sentence sounds like a fault.
+     */
+    suspend fun seekToFraction(fraction: Double) = lock.withLock {
+        val source = book ?: return@withLock
+        seekToCharacter((bookCharacters * fraction.coerceIn(0.0, 1.0)).toLong(), source)
+    }
+
+    private suspend fun seekToCharacter(character: Long, source: BookSource) {
+        var consumed = 0L
+        var target = source.chapters.lastIndex.coerceAtLeast(0)
+        for ((index, chapter) in source.chapters.withIndex()) {
+            val length = chapter.approximateCharacters.toLong()
+            if (consumed + length > character) {
+                target = index
+                break
+            }
+            consumed += length
+        }
+        if (ChapterIndex(target) != plan?.chapter) prepareChapter(ChapterIndex(target))
+        val within = (character - consumed).coerceAtLeast(0).toInt()
+        restartAt(plan?.unitAtOffset(within)?.index ?: 0)
+    }
+
     private fun ChapterIndex.coerceIn(range: IntRange): ChapterIndex =
         ChapterIndex(value.coerceIn(range.first, range.last))
 
