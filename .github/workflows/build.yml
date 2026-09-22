@@ -125,8 +125,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # The desktop app does not need the Android SDK, but :ui does resolve AGP to decide whether
-      # to add its Android target. withAndroid=false skips that entirely.
+      # The desktop app needs no Android SDK. AGP itself is still resolved — :ui declares it so
+      # that it can add an Android target — but withAndroid=false stops that target being added,
+      # and with it the need for an installed SDK.
       - name: Package the desktop app
         run: ./gradlew -Psoundbound.withAndroid=false :desktopApp:packageDistributionForCurrentOS
 
