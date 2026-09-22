@@ -78,7 +78,7 @@ fun buildBlockText(
                 span.href != null -> TextDecoration.Underline
                 else -> null
             },
-            color = if (span.href != null) palette.link else null,
+            color = if (span.href != null) palette.link else Color.Unspecified,
             baselineShift = when {
                 InlineStyle.SUPERSCRIPT in span.styles -> BaselineShift.Superscript
                 InlineStyle.SUBSCRIPT in span.styles -> BaselineShift.Subscript
@@ -95,11 +95,14 @@ fun buildBlockText(
             letterSpacing = if (InlineStyle.SMALL_CAPS in span.styles) 0.08.em else TextUnit.Unspecified,
         )
         addStyle(style, span.start.coerceIn(0, block.text.length), span.end.coerceIn(0, block.text.length))
-        if (span.href != null) {
-            addStringAnnotation(ANNOTATION_LINK, span.href, span.start, span.end)
+        // Bound to locals: the properties live in another module, so they are not smart-castable.
+        val href = span.href
+        if (href != null) {
+            addStringAnnotation(ANNOTATION_LINK, href, span.start, span.end)
         }
-        if (span.noteRef != null) {
-            addStringAnnotation(ANNOTATION_NOTE, span.noteRef, span.start, span.end)
+        val noteRef = span.noteRef
+        if (noteRef != null) {
+            addStringAnnotation(ANNOTATION_NOTE, noteRef, span.start, span.end)
         }
     }
 

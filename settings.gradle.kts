@@ -17,7 +17,7 @@ pluginManagement {
     // block. A root declaration — even `apply false` — is resolved on every invocation, which
     // would stop :core building on a machine with no Android SDK and no access to Google's
     // Maven repository. This way only the modules that actually ask for AGP pull it in.
-    val agpVersion = "8.11.1"
+    val agpVersion = providers.gradleProperty("soundbound.agpVersion").get()
     resolutionStrategy {
         eachPlugin {
             if (requested.id.id.startsWith("com.android")) {

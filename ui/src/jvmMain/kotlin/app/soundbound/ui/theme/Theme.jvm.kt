@@ -2,7 +2,7 @@ package app.soundbound.ui.theme
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.platform.Font
 import androidx.compose.ui.text.font.FontFamily
 import app.soundbound.core.prefs.ReadingFont
 import java.io.File

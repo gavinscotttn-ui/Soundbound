@@ -22,6 +22,17 @@ object SoundboundShapes {
         extraLarge = RoundedCornerShape(32.dp),
     )
 
+    /**
+     * The same radii again, reachable directly. Material's [Shapes] holder is only consultable
+     * from a composable via `MaterialTheme.shapes`; plenty of call sites here want a radius while
+     * building a modifier outside that scope, so each one is named here too.
+     */
+    val extraSmall: CornerBasedShape = RoundedCornerShape(6.dp)
+    val small: CornerBasedShape = RoundedCornerShape(10.dp)
+    val medium: CornerBasedShape = RoundedCornerShape(16.dp)
+    val large: CornerBasedShape = RoundedCornerShape(24.dp)
+    val extraLarge: CornerBasedShape = RoundedCornerShape(32.dp)
+
     val cover: CornerBasedShape = RoundedCornerShape(4.dp)
     val sheet: CornerBasedShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val pill: CornerBasedShape = RoundedCornerShape(percent = 50)
