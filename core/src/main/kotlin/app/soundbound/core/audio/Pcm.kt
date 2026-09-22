@@ -8,19 +8,29 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * A block of mono audio as normalised floats in −1.0..1.0, which is what every neural
- * synthesiser emits and the only form the rest of the pipeline deals in. Conversion to
- * 16-bit PCM happens once, at the very edge, where the platform's audio device wants it.
+ * A block of audio as normalised floats in −1.0..1.0, which is what every neural synthesiser
+ * emits and the only form the rest of the pipeline deals in. Conversion to 16-bit PCM happens
+ * once, at the very edge, where the platform's audio device wants it.
+ *
+ * Synthesised speech is mono, which is why [channels] defaults to one and almost every clip in
+ * the app is one. A recorded audiobook may be stereo, and downmixing it would be audible on
+ * headphones the moment a production uses more than one voice, so stereo is carried through
+ * intact instead. Stereo samples are interleaved: left, right, left, right.
  */
 class AudioClip(
     val samples: FloatArray,
     val sampleRate: Int,
+    val channels: Int = 1,
 ) {
     init {
         require(sampleRate > 0) { "sampleRate must be positive, was $sampleRate" }
+        require(channels in 1..2) { "channels must be 1 or 2, was $channels" }
     }
 
-    val durationMillis: Long get() = (samples.size * 1000L) / sampleRate
+    /** Sample frames — one per instant of time, whatever the channel count. */
+    val frameCount: Int get() = samples.size / channels
+
+    val durationMillis: Long get() = (frameCount * 1000L) / sampleRate
     val isEmpty: Boolean get() = samples.isEmpty()
 
     /** Peak absolute amplitude, for level metering and normalisation. */
@@ -58,17 +68,45 @@ class AudioClip(
         require(other.sampleRate == sampleRate) {
             "Cannot join ${other.sampleRate} Hz audio onto $sampleRate Hz audio"
         }
+        require(other.channels == channels) {
+            "Cannot join ${other.channels}-channel audio onto $channels-channel audio"
+        }
         val joined = FloatArray(samples.size + other.samples.size)
         samples.copyInto(joined)
         other.samples.copyInto(joined, samples.size)
-        return AudioClip(joined, sampleRate)
+        return AudioClip(joined, sampleRate, channels)
+    }
+
+    /** Splits interleaved stereo into one array per channel. Mono is returned unchanged. */
+    fun deinterleave(): Array<FloatArray> {
+        if (channels == 1) return arrayOf(samples)
+        return Array(channels) { channel ->
+            FloatArray(frameCount) { frame -> samples[frame * channels + channel] }
+        }
     }
 
     companion object {
-        fun silence(millis: Int, sampleRate: Int): AudioClip =
-            AudioClip(FloatArray((sampleRate.toLong() * millis / 1000).toInt()), sampleRate)
+        fun silence(millis: Int, sampleRate: Int, channels: Int = 1): AudioClip =
+            AudioClip(
+                FloatArray((sampleRate.toLong() * millis / 1000).toInt() * channels),
+                sampleRate,
+                channels,
+            )
 
-        fun empty(sampleRate: Int) = AudioClip(FloatArray(0), sampleRate)
+        fun empty(sampleRate: Int, channels: Int = 1) = AudioClip(FloatArray(0), sampleRate, channels)
+
+        /** Interleaves per-channel arrays back into one clip. */
+        fun interleave(channels: Array<FloatArray>, sampleRate: Int): AudioClip {
+            if (channels.size == 1) return AudioClip(channels[0], sampleRate, 1)
+            val frames = channels.minOf { it.size }
+            val out = FloatArray(frames * channels.size)
+            for (frame in 0 until frames) {
+                for (channel in channels.indices) {
+                    out[frame * channels.size + channel] = channels[channel][frame]
+                }
+            }
+            return AudioClip(out, sampleRate, channels.size)
+        }
     }
 }
 
@@ -84,34 +122,40 @@ object Dsp {
      */
     fun applyEdgeFades(clip: AudioClip, fadeMillis: Int = 6): AudioClip {
         if (clip.isEmpty) return clip
-        val fadeSamples = min(
+        val fadeFrames = min(
             (clip.sampleRate.toLong() * fadeMillis / 1000).toInt(),
-            clip.samples.size / 2,
+            clip.frameCount / 2,
         )
-        if (fadeSamples <= 0) return clip
+        if (fadeFrames <= 0) return clip
         val out = clip.samples.copyOf()
-        for (i in 0 until fadeSamples) {
-            val gain = (0.5 - 0.5 * cos(PI * i / fadeSamples)).toFloat()
-            out[i] *= gain
-            out[out.size - 1 - i] *= gain
+        val channels = clip.channels
+        for (frame in 0 until fadeFrames) {
+            val gain = (0.5 - 0.5 * cos(PI * frame / fadeFrames)).toFloat()
+            for (channel in 0 until channels) {
+                out[frame * channels + channel] *= gain
+                out[out.size - 1 - (frame * channels + channel)] *= gain
+            }
         }
-        return AudioClip(out, clip.sampleRate)
+        return AudioClip(out, clip.sampleRate, channels)
     }
 
     /** Trims near-silence from both ends, leaving a short tail so words do not sound clipped. */
     fun trimSilence(clip: AudioClip, thresholdDb: Float = -50f, keepMillis: Int = 20): AudioClip {
         if (clip.isEmpty) return clip
         val threshold = dbToLinear(thresholdDb)
+        val channels = clip.channels
         var start = 0
         while (start < clip.samples.size && kotlin.math.abs(clip.samples[start]) < threshold) start++
         var end = clip.samples.size - 1
         while (end > start && kotlin.math.abs(clip.samples[end]) < threshold) end--
-        if (start >= end) return AudioClip.empty(clip.sampleRate)
+        if (start >= end) return AudioClip.empty(clip.sampleRate, channels)
 
-        val keep = (clip.sampleRate.toLong() * keepMillis / 1000).toInt()
-        val from = max(0, start - keep)
-        val to = min(clip.samples.size, end + keep)
-        return AudioClip(clip.samples.copyOfRange(from, to), clip.sampleRate)
+        val keep = (clip.sampleRate.toLong() * keepMillis / 1000).toInt() * channels
+        // Rounded down to a frame boundary: cutting mid-frame would swap the channels over for
+        // the rest of the clip.
+        val from = (max(0, start - keep) / channels) * channels
+        val to = (min(clip.samples.size, end + keep) / channels) * channels
+        return AudioClip(clip.samples.copyOfRange(from, to), clip.sampleRate, channels)
     }
 
     /** Scales the clip so its peak sits at [targetPeak], leaving quiet clips alone. */
@@ -120,12 +164,20 @@ object Dsp {
         if (peak <= 1e-6f) return clip
         val gain = min(targetPeak / peak, maxGain)
         if (gain in 0.99f..1.01f) return clip
-        return AudioClip(FloatArray(clip.samples.size) { clip.samples[it] * gain }, clip.sampleRate)
+        return AudioClip(
+            FloatArray(clip.samples.size) { clip.samples[it] * gain },
+            clip.sampleRate,
+            clip.channels,
+        )
     }
 
     fun applyGain(clip: AudioClip, gain: Float): AudioClip {
         if (gain == 1f) return clip
-        return AudioClip(FloatArray(clip.samples.size) { clip.samples[it] * gain }, clip.sampleRate)
+        return AudioClip(
+            FloatArray(clip.samples.size) { clip.samples[it] * gain },
+            clip.sampleRate,
+            clip.channels,
+        )
     }
 
     /**
@@ -139,13 +191,30 @@ object Dsp {
     fun resample(clip: AudioClip, targetRate: Int): AudioClip {
         require(targetRate > 0) { "targetRate must be positive" }
         if (clip.sampleRate == targetRate || clip.isEmpty) {
-            return if (clip.sampleRate == targetRate) clip else AudioClip(clip.samples, targetRate)
+            return if (clip.sampleRate == targetRate) {
+                clip
+            } else {
+                AudioClip(clip.samples, targetRate, clip.channels)
+            }
+        }
+        // Stereo is resampled a channel at a time. Interpolating across interleaved samples
+        // would mix left into right and collapse the stereo image.
+        if (clip.channels > 1) {
+            val ratio = targetRate.toDouble() / clip.sampleRate
+            return AudioClip.interleave(
+                clip.deinterleave()
+                    .map { resampleMono(it, ratio, (it.size * ratio).toInt().coerceAtLeast(1)) }
+                    .toTypedArray(),
+                targetRate,
+            )
         }
         val ratio = targetRate.toDouble() / clip.sampleRate
         val outputLength = (clip.samples.size * ratio).toInt().coerceAtLeast(1)
-        val source = clip.samples
-        val out = FloatArray(outputLength)
+        return AudioClip(resampleMono(clip.samples, ratio, outputLength), targetRate, 1)
+    }
 
+    private fun resampleMono(source: FloatArray, ratio: Double, outputLength: Int): FloatArray {
+        val out = FloatArray(outputLength)
         for (i in 0 until outputLength) {
             val position = i / ratio
             val index = position.toInt()
@@ -156,7 +225,7 @@ object Dsp {
             val p3 = source[(index + 2).coerceIn(0, source.size - 1)]
             out[i] = catmullRom(p0, p1, p2, p3, t)
         }
-        return AudioClip(out, targetRate)
+        return out
     }
 
     private fun catmullRom(p0: Float, p1: Float, p2: Float, p3: Float, t: Float): Float {
@@ -184,6 +253,22 @@ object Dsp {
         if (speed in 0.995f..1.005f) return clip
         val factor = speed.coerceIn(0.25f, 4f)
 
+        // Stereo is stretched a channel at a time. WSOLA chooses where to cut by looking for a
+        // matching waveform, and run over interleaved samples it would cut the two channels at
+        // different places — which is heard as the stereo image wandering about.
+        if (clip.channels > 1) {
+            return AudioClip.interleave(
+                clip.deinterleave()
+                    .map { stretchMono(it, clip.sampleRate, factor) }
+                    .toTypedArray(),
+                clip.sampleRate,
+            )
+        }
+        return AudioClip(stretchMono(clip.samples, clip.sampleRate, factor), clip.sampleRate, 1)
+    }
+
+    private fun stretchMono(source: FloatArray, sampleRate: Int, factor: Float): FloatArray {
+        val clip = AudioClip(source, sampleRate, 1)
         val frameSize = (clip.sampleRate * 0.040f).toInt().coerceAtLeast(64)   // 40 ms
         val synthesisHop = frameSize / 2
         val analysisHop = (synthesisHop * factor).toInt().coerceAtLeast(1)
@@ -220,7 +305,7 @@ object Dsp {
             val divisor = normalisation[i]
             result[i] = if (divisor > 1e-4f) out[i] / divisor else out[i]
         }
-        return AudioClip(result, clip.sampleRate)
+        return result
     }
 
     /** Finds the input offset whose overlap best matches what has already been synthesised. */
@@ -268,7 +353,7 @@ object Dsp {
             AudioClip(stretched.samples, (clip.sampleRate * ratio).toInt().coerceAtLeast(1)),
             clip.sampleRate,
         )
-        return AudioClip(resampled.samples, clip.sampleRate)
+        return AudioClip(resampled.samples, clip.sampleRate, clip.channels)
     }
 
     /** Crossfades [tail] into [head] over [millis], for seamless joins between clips. */
@@ -276,23 +361,33 @@ object Dsp {
         require(head.sampleRate == tail.sampleRate) { "Crossfade needs matching sample rates" }
         if (head.isEmpty) return tail
         if (tail.isEmpty) return head
-        val fade = min(
+        require(head.channels == tail.channels) { "Crossfade needs matching channel counts" }
+
+        val channels = head.channels
+        // Counted in frames and multiplied back up, so the fade always starts on a frame
+        // boundary and the two channels fade together.
+        val fadeFrames = min(
             (head.sampleRate.toLong() * millis / 1000).toInt(),
-            min(head.samples.size, tail.samples.size),
+            min(head.frameCount, tail.frameCount),
         )
+        val fade = fadeFrames * channels
         if (fade <= 0) return head.append(tail)
 
         val out = FloatArray(head.samples.size + tail.samples.size - fade)
         head.samples.copyInto(out, 0, 0, head.samples.size - fade)
-        for (i in 0 until fade) {
-            val t = i.toFloat() / fade
+        for (frame in 0 until fadeFrames) {
+            val t = frame.toFloat() / fadeFrames
             val fadeOut = cos(t * PI / 2).toFloat()
             val fadeIn = sin(t * PI / 2).toFloat()
-            out[head.samples.size - fade + i] =
-                head.samples[head.samples.size - fade + i] * fadeOut + tail.samples[i] * fadeIn
+            for (channel in 0 until channels) {
+                val index = frame * channels + channel
+                out[head.samples.size - fade + index] =
+                    head.samples[head.samples.size - fade + index] * fadeOut +
+                    tail.samples[index] * fadeIn
+            }
         }
         tail.samples.copyInto(out, head.samples.size, fade, tail.samples.size)
-        return AudioClip(out, head.sampleRate)
+        return AudioClip(out, head.sampleRate, channels)
     }
 
     fun dbToLinear(db: Float): Float = Math.pow(10.0, db / 20.0).toFloat()

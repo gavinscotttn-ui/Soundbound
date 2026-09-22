@@ -121,6 +121,9 @@ internal class FakeSink(private val capacity: Int = 3) : AudioSink {
     override var sampleRate: Int = 22_050
         private set
 
+    override var channels: Int = 1
+        private set
+
     private val _position = MutableStateFlow(PlaybackPosition())
     override val position: StateFlow<PlaybackPosition> = _position
 
@@ -138,8 +141,9 @@ internal class FakeSink(private val capacity: Int = 3) : AudioSink {
     var closed = false
         private set
 
-    override fun start(sampleRate: Int) {
+    override fun start(sampleRate: Int, channels: Int) {
         this.sampleRate = sampleRate
+        this.channels = channels
         startCount++
         _isPlaying.value = true
     }
@@ -150,7 +154,7 @@ internal class FakeSink(private val capacity: Int = 3) : AudioSink {
     }
 
     override suspend fun enqueueSilence(clipId: Long, millis: Int) {
-        enqueue(clipId, AudioClip.silence(millis, sampleRate))
+        enqueue(clipId, AudioClip.silence(millis, sampleRate, channels))
     }
 
     /** Marks the head of the buffer as audible. Returns false when nothing is buffered. */
@@ -158,7 +162,7 @@ internal class FakeSink(private val capacity: Int = 3) : AudioSink {
         val (id, clip) = queue.removeFirstOrNull() ?: return false
         space.release()
         played.add(id)
-        _position.value = PlaybackPosition(id, clip.samples.size, clip.samples.size)
+        _position.value = PlaybackPosition(id, clip.frameCount, clip.frameCount)
         return true
     }
 

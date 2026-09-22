@@ -42,6 +42,9 @@ class AndroidAudioSink(
     override var sampleRate: Int = 22_050
         private set
 
+    override var channels: Int = 1
+        private set
+
     private val _position = MutableStateFlow(PlaybackPosition())
     override val position: StateFlow<PlaybackPosition> = _position.asStateFlow()
 
@@ -61,17 +64,21 @@ class AndroidAudioSink(
         val endFrame: Long get() = startFrame + frames
     }
 
-    override fun start(sampleRate: Int) {
-        if (track != null && this.sampleRate == sampleRate) return
+    override fun start(sampleRate: Int, channels: Int) {
+        // The channel count has to be part of this test as well as the rate: moving from a
+        // synthesised book to a stereo recording changes the format even when the rate matches,
+        // and reusing the mono track would play the left channel at double speed.
+        if (track != null && this.sampleRate == sampleRate && this.channels == channels) return
         release()
         this.sampleRate = sampleRate
+        this.channels = channels
 
         val minimum = AudioTrack.getMinBufferSize(
             sampleRate,
-            AudioFormat.CHANNEL_OUT_MONO,
+            channelMaskFor(channels),
             AudioFormat.ENCODING_PCM_16BIT,
         ).coerceAtLeast(4_096)
-        val wanted = sampleRate * 2 * bufferMillis / 1000
+        val wanted = sampleRate * 2 * channels * bufferMillis / 1000
         val bufferBytes = maxOf(minimum, wanted)
 
         val created = AudioTrack.Builder()
@@ -87,7 +94,7 @@ class AndroidAudioSink(
                 AudioFormat.Builder()
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setSampleRate(sampleRate)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .setChannelMask(channelMaskFor(channels))
                     .build(),
             )
             .setTransferMode(AudioTrack.MODE_STREAM)
@@ -101,6 +108,11 @@ class AndroidAudioSink(
         timeline.clear()
         _isPlaying.value = true
         startMonitor()
+    }
+
+    private fun channelMaskFor(channels: Int): Int = when (channels) {
+        2 -> AudioFormat.CHANNEL_OUT_STEREO
+        else -> AudioFormat.CHANNEL_OUT_MONO
     }
 
     private fun startMonitor() {
@@ -139,11 +151,14 @@ class AndroidAudioSink(
 
     override suspend fun enqueue(clipId: Long, clip: AudioClip) {
         if (clip.isEmpty) return
-        if (clip.sampleRate != sampleRate) start(clip.sampleRate)
+        if (clip.sampleRate != sampleRate || clip.channels != channels) {
+            start(clip.sampleRate, clip.channels)
+        }
         writeLock.withLock {
             val current = track ?: return
             val pcm = clip.toPcm16()
-            val frames = pcm.size / 2
+            // Two bytes a sample, and one frame is one sample per channel.
+            val frames = pcm.size / 2 / channels
 
             synchronized(timeline) {
                 timeline.addLast(QueuedClip(clipId, framesWritten, frames))
@@ -165,7 +180,7 @@ class AndroidAudioSink(
 
     override suspend fun enqueueSilence(clipId: Long, millis: Int) {
         if (millis <= 0) return
-        enqueue(clipId, AudioClip.silence(millis, sampleRate))
+        enqueue(clipId, AudioClip.silence(millis, sampleRate, channels))
     }
 
     override fun pause() {

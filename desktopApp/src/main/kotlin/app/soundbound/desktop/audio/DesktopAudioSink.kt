@@ -41,6 +41,9 @@ class DesktopAudioSink(
     override var sampleRate: Int = 22_050
         private set
 
+    override var channels: Int = 1
+        private set
+
     private val _position = MutableStateFlow(PlaybackPosition())
     override val position: StateFlow<PlaybackPosition> = _position.asStateFlow()
 
@@ -60,17 +63,20 @@ class DesktopAudioSink(
         val endFrame: Long get() = startFrame + frames
     }
 
-    override fun start(sampleRate: Int) {
-        if (line != null && this.sampleRate == sampleRate) return
+    override fun start(sampleRate: Int, channels: Int) {
+        // The channel count matters as much as the rate: a stereo recording played through a
+        // line opened for mono comes out at double speed with only one channel audible.
+        if (line != null && this.sampleRate == sampleRate && this.channels == channels) return
         release()
         this.sampleRate = sampleRate
+        this.channels = channels
 
         val format = AudioFormat(
             AudioFormat.Encoding.PCM_SIGNED,
             sampleRate.toFloat(),
             16,
-            1,
-            2,
+            channels,
+            2 * channels, // frame size: two bytes a sample, one sample a channel
             sampleRate.toFloat(),
             false, // little-endian, matching AudioClip.toPcm16
         )
@@ -78,7 +84,7 @@ class DesktopAudioSink(
         val info = DataLine.Info(SourceDataLine::class.java, format)
         val opened = try {
             (AudioSystem.getLine(info) as SourceDataLine).also {
-                it.open(format, sampleRate * 2 * bufferMillis / 1000)
+                it.open(format, sampleRate * 2 * channels * bufferMillis / 1000)
                 it.start()
             }
         } catch (e: LineUnavailableException) {
@@ -129,11 +135,14 @@ class DesktopAudioSink(
 
     override suspend fun enqueue(clipId: Long, clip: AudioClip) {
         if (clip.isEmpty) return
-        if (clip.sampleRate != sampleRate) start(clip.sampleRate)
+        if (clip.sampleRate != sampleRate || clip.channels != channels) {
+            start(clip.sampleRate, clip.channels)
+        }
         writeLock.withLock {
             val current = line ?: return
             val pcm = clip.toPcm16()
-            val frames = pcm.size / 2
+            // Two bytes a sample, and one frame is one sample per channel.
+            val frames = pcm.size / 2 / channels
 
             synchronized(timeline) {
                 timeline.addLast(QueuedClip(clipId, framesWritten, frames))
@@ -155,7 +164,7 @@ class DesktopAudioSink(
 
     override suspend fun enqueueSilence(clipId: Long, millis: Int) {
         if (millis <= 0) return
-        enqueue(clipId, AudioClip.silence(millis, sampleRate))
+        enqueue(clipId, AudioClip.silence(millis, sampleRate, channels))
     }
 
     override fun pause() {

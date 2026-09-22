@@ -29,12 +29,18 @@ interface AudioSink : AutoCloseable {
 
     val sampleRate: Int
 
+    /** How many channels the device is currently open for: 1 for speech, 2 for a recording. */
+    val channels: Int get() = 1
+
     val position: StateFlow<PlaybackPosition>
 
     val isPlaying: StateFlow<Boolean>
 
-    /** Opens the device. Called again with a different rate when the voice changes. */
-    fun start(sampleRate: Int)
+    /**
+     * Opens the device. Called again when the format changes — a different voice runs at a
+     * different rate, and a recorded audiobook may be stereo where synthesised speech is not.
+     */
+    fun start(sampleRate: Int, channels: Int = 1)
 
     /**
      * Queues a clip, suspending while the queue is full so that synthesis naturally throttles
@@ -44,6 +50,11 @@ interface AudioSink : AutoCloseable {
 
     /** Queues silence, used for the pauses between sentences and paragraphs. */
     suspend fun enqueueSilence(clipId: Long, millis: Int)
+
+    /**
+     * Frames of that clip already played — see [PlaybackPosition]. A frame is one instant of
+     * time whatever the channel count, so a position means the same thing in mono and stereo.
+     */
 
     fun pause()
 
