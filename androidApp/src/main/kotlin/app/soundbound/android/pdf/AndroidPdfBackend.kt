@@ -9,11 +9,11 @@ import app.soundbound.core.book.pdf.PdfOutlineEntry
 import app.soundbound.core.book.pdf.PdfPage
 import app.soundbound.core.book.pdf.PdfTextLine
 import app.soundbound.core.model.BookMetadata
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.interactive.documentnavigation.outline.PDOutlineItem
 import com.tom_roush.pdfbox.text.PDFTextStripper
 import com.tom_roush.pdfbox.text.TextPosition
-import com.tom_roush.pdfbox.util.PDFBoxResourceLoader
 import java.io.ByteArrayOutputStream
 import java.io.File
 
