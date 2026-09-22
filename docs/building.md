@@ -5,7 +5,8 @@
 - **JDK 17 or newer.** No toolchain is pinned, so whatever you already have works. The project
   targets Java 17 bytecode because that is what Android accepts.
 - **Android SDK** — only for `:androidApp` and for `:ui`'s Android target. Android Studio installs
-  it; otherwise the command-line tools plus `platforms;android-36` and `build-tools;36.0.0`.
+  it; otherwise the command-line tools alone will do, and the Android Gradle Plugin fetches the
+  rest. The build compiles against API 37, which is what Compose Multiplatform 1.12 requires.
 - Nothing else. Gradle fetches the rest.
 
 ## The three build configurations

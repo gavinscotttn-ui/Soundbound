@@ -68,16 +68,6 @@ jobs:
           # what the build needs avoids it.
           packages: 'platform-tools'
 
-      # Temporary: the compile SDK this build asks for was not in the runner's repository, and
-      # the failure did not say what was. Removed once the right version is settled.
-      - name: List the Android platforms this runner can install
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list 2>/dev/null \
-            | grep -E "platforms;android-3[0-9]" | sort -u || true
-          echo "--- with the preview channel ---"
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --list --channel=3 2>/dev/null \
-            | grep -E "platforms;android-3[0-9]" | sort -u || true
-
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Build the debug APK

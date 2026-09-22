@@ -5,7 +5,10 @@
 # release object to it, dropping to "2.2.21" is the one-line fix.
 kotlin = "2.3.21"
 composeMultiplatform = "1.12.0"
-agp = "8.11.1"
+# The Android Gradle Plugin's version lives in gradle.properties as soundbound.agpVersion,
+# because the root build file has to read it from a buildscript block, where this catalogue
+# is not available. Kept in step with it.
+agp = "9.1.0"
 coroutines = "1.11.0"
 serialization = "1.9.0"
 okio = "3.18.2"
