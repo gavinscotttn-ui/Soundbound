@@ -276,9 +276,12 @@ class AndroidPlatformBridge(
 
     private companion object {
         /**
-         * `*/*` is included on purpose: plenty of file managers report an EPUB as
-         * `application/octet-stream`, and a picker that refuses to show the user's own books is
-         * worse than one that shows a few files it cannot open.
+         * The catch-all wildcard type at the end of this list is there on purpose: plenty of
+         * file managers report an EPUB as `application/octet-stream`, and a picker that refuses
+         * to show the user's own books is worse than one that shows a few files it cannot open.
+         *
+         * (It is spelled out in the list below rather than here, because the wildcard's own
+         * characters would close this comment.)
          */
         val BOOK_MIME_TYPES = arrayOf(
             "application/epub+zip",
