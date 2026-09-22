@@ -1,16 +1,10 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
 plugins {
+    // No org.jetbrains.kotlin.android here: since AGP 9 the Android plugin brings Kotlin
+    // support with it, and applying the standalone plugin as well is refused outright. The
+    // Kotlin JVM target follows the Java one set in compileOptions below.
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(JvmTarget.JVM_17)
-    }
 }
 
 android {
