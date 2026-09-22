@@ -66,7 +66,7 @@ jobs:
           # The action's default package list still includes the long-obsolete `tools` package,
           # which sdkmanager now refuses outright and which fails the whole step. Naming exactly
           # what the build needs avoids it.
-          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+          packages: 'platform-tools platforms;android-37'
 
       - uses: gradle/actions/setup-gradle@v4
 

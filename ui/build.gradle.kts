@@ -65,7 +65,7 @@ kotlin {
 if (withAndroid) {
     extensions.getByName("android").withGroovyBuilder {
         setProperty("namespace", "app.soundbound.ui")
-        setProperty("compileSdk", 36)
+        setProperty("compileSdk", 37)
 
         "defaultConfig" {
             setProperty("minSdk", 26)
