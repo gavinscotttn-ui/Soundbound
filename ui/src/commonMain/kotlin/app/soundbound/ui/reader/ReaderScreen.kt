@@ -62,8 +62,10 @@ import app.soundbound.ui.theme.LocalReaderPalette
 import app.soundbound.ui.theme.SoundboundShapes
 import app.soundbound.ui.theme.Spacing
 import app.soundbound.ui.theme.platformReadingFont
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.withContext
 
 /** What the reader is being asked to show. */
 data class ReaderScreenState(
@@ -419,13 +421,14 @@ private fun BlockImage(block: ContentBlock, actions: ReaderActions) {
     var failed by remember(ref) { mutableStateOf(false) }
 
     LaunchedEffect(ref) {
-        val bytes = actions.onLoadImage(ref)
-        if (bytes == null) {
-            failed = true
-        } else {
-            bitmap = decodeImageBytes(bytes, targetWidthPixels = 1_400)
-            failed = bitmap == null
+        // Both the read and the decode are off the main thread: a full-page scan inside an EPUB
+        // can be several megabytes, and doing this inline drops frames on every image.
+        val decoded = withContext(Dispatchers.IO) {
+            val bytes = actions.onLoadImage(ref) ?: return@withContext null
+            decodeImageBytes(bytes, targetWidthPixels = 1_400)
         }
+        bitmap = decoded
+        failed = decoded == null
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {

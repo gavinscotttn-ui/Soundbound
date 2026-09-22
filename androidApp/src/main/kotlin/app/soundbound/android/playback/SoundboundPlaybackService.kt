@@ -61,7 +61,7 @@ class SoundboundPlaybackService : LifecycleService() {
             }
         }
 
-        startForeground(NOTIFICATION_ID, buildNotification())
+        startForegroundCompat()
         return START_NOT_STICKY
     }
 
@@ -223,6 +223,23 @@ class SoundboundPlaybackService : LifecycleService() {
         } else {
             @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(receiver, filter)
+        }
+    }
+
+    /**
+     * Android 14 requires the service type to be declared at the call site as well as in the
+     * manifest, and throws if it is missing.
+     */
+    private fun startForegroundCompat() {
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
         }
     }
 

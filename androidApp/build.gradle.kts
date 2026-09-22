@@ -23,7 +23,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = rootProject.version.toString()
-        resourceConfigurations.add("en")
     }
 
     buildFeatures {
@@ -84,7 +83,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
 
     sourceSets {
@@ -121,6 +119,4 @@ dependencies {
 
     // PDFBox-Android, a port that avoids java.awt. :core stays free of both.
     implementation(libs.pdfbox.android)
-
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

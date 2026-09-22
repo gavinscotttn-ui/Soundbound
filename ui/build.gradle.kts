@@ -31,7 +31,6 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
-            implementation(compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)
         }
 
@@ -52,11 +51,6 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
-}
-
-compose.resources {
-    publicResClass = true
-    packageOfResClass = "app.soundbound.ui.resources"
 }
 
 if (withAndroid) {

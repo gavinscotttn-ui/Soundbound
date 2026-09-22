@@ -1,6 +1,7 @@
 package app.soundbound.core.session
 
 import app.soundbound.core.book.BookFileHandle
+import app.soundbound.core.book.synchronised
 import app.soundbound.core.book.BookSource
 import app.soundbound.core.library.BookImporter
 import app.soundbound.core.library.BookOpener
@@ -82,7 +83,7 @@ class Soundbound(
     val voiceInstaller: VoiceInstaller,
     val opener: BookOpener,
     val importer: BookImporter,
-    audioSink: AudioSink,
+    private val audioSink: AudioSink,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     /** The device's language, used to pick a first voice. */
     private val deviceLanguageTag: String = "en-GB",
@@ -102,6 +103,13 @@ class Soundbound(
     )
 
     private val openLock = Mutex()
+    private val previewLock = Mutex()
+
+    /**
+     * Preview clips are given negative identifiers so they can never be mistaken for a clip of
+     * the book by the highlight watcher.
+     */
+    private val previewClipIds = java.util.concurrent.atomic.AtomicLong(0)
 
     /** Renders books to MP3 or WAV. Needs no network and no permission beyond a folder to write to. */
     val exporter = AudiobookExporter(voiceRegistry)
@@ -117,6 +125,18 @@ class Soundbound(
             _state.value = _state.value.copy(isLoadingVoices = true)
             val voices = runCatching { voiceRegistry.voices() }.getOrDefault(emptyList())
             _state.value = _state.value.copy(voices = voices, isLoadingVoices = false)
+
+            // Having just installed a first voice, the user expects to be able to press play.
+            // Making them then go and choose it from a list would be a pointless extra step.
+            if (voices.isNotEmpty() && player.state.value.voice == null) {
+                val entry = _state.value.activeBookId?.let { library.entry(it) }
+                voiceFor(entry)?.let { chosen ->
+                    if (settings.current.speech.voiceId == null) {
+                        settings.updateSpeech { it.copy(voiceId = chosen.id.value) }
+                    }
+                    player.setVoice(chosen)
+                }
+            }
         }
     }
 
@@ -151,12 +171,29 @@ class Soundbound(
         player.setVoice(voice)
     }
 
-    /** Speaks a short sample so the user can hear a voice before committing to it. */
+    /**
+     * Speaks a short sample so the user can hear a voice before committing to it.
+     *
+     * Playback is paused first and the queue flushed: the registry keeps exactly one model
+     * resident, so loading the preview voice would otherwise pull the narrating model out from
+     * under a chapter that is still playing.
+     */
     suspend fun previewVoice(voice: TtsVoice, text: String = DEFAULT_PREVIEW): Result<Unit> =
-        runCatching {
-            val loaded = voiceRegistry.load(voice)
-            loaded.synthesise(text, settings.current.speech.toSpeechParams())
-        }.map { }
+        previewLock.withLock {
+            runCatching {
+                player.pause()
+                audioSink.flushAndStop()
+
+                val loaded = voiceRegistry.load(voice)
+                val clip = loaded.synthesise(text, settings.current.speech.toSpeechParams())
+                if (clip.isEmpty) return@runCatching
+
+                audioSink.start(clip.sampleRate)
+                audioSink.resume()
+                audioSink.enqueue(previewClipIds.decrementAndGet(), clip)
+                audioSink.drain()
+            }
+        }
 
     // ---------------------------------------------------------------- books
 
@@ -171,7 +208,10 @@ class Soundbound(
             )
 
         val source = try {
-            withContext(Dispatchers.IO) { opener.open(handle) }
+            // Wrapped because the reader and read-aloud both parse chapters from this one
+            // instance, on different dispatchers, and a PDF parser walked by two threads at once
+            // corrupts its own state.
+            withContext(Dispatchers.IO) { opener.open(handle).synchronised() }
         } catch (e: Exception) {
             return@withLock Result.failure(e)
         }

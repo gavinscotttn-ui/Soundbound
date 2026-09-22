@@ -4,7 +4,6 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.sp
 
 /**
@@ -26,11 +25,6 @@ object SoundboundType {
     val displayFamily: FontFamily = FontFamily.Serif
     val bodyFamily: FontFamily = FontFamily.Default
 
-    private val tightLineHeight = LineHeightStyle(
-        alignment = LineHeightStyle.Alignment.Center,
-        trim = LineHeightStyle.Trim.None,
-    )
-
     val Typography: Typography = Typography(
         displayLarge = TextStyle(
             fontFamily = displayFamily,
@@ -38,7 +32,6 @@ object SoundboundType {
             fontSize = 52.sp,
             lineHeight = 58.sp,
             letterSpacing = (-0.8).sp,
-            lineHeightStyle = tightLineHeight,
         ),
         displayMedium = TextStyle(
             fontFamily = displayFamily,
@@ -46,7 +39,6 @@ object SoundboundType {
             fontSize = 40.sp,
             lineHeight = 46.sp,
             letterSpacing = (-0.5).sp,
-            lineHeightStyle = tightLineHeight,
         ),
         displaySmall = TextStyle(
             fontFamily = displayFamily,
@@ -54,7 +46,6 @@ object SoundboundType {
             fontSize = 32.sp,
             lineHeight = 38.sp,
             letterSpacing = (-0.3).sp,
-            lineHeightStyle = tightLineHeight,
         ),
         headlineLarge = TextStyle(
             fontFamily = displayFamily,

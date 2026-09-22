@@ -3,9 +3,10 @@ package app.soundbound.desktop
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
@@ -39,9 +41,11 @@ import app.soundbound.desktop.tts.DesktopSystemTts
 import app.soundbound.pdfjvm.PdfBoxBackend
 import app.soundbound.ui.app.SoundboundApp
 import app.soundbound.ui.theme.DesktopFonts
+import app.soundbound.ui.theme.SoundboundColours
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
 
@@ -81,20 +85,30 @@ fun main() = application {
         Box(modifier = Modifier.fillMaxSize()) {
             SoundboundApp(engine = engine, bridge = bridge)
 
-            // The desktop has no snackbar host outside the interface, so a message from the bridge
-            // itself — a file manager that refused to open, say — is shown here.
+            // The desktop has no snackbar host outside the interface, so a message from the
+            // bridge itself — a file manager that refused to open, say — is shown here. It sits
+            // outside SoundboundTheme, so its colours are named explicitly rather than read from
+            // MaterialTheme, which out here would quietly hand back Material's own defaults.
             statusMessage?.let { message ->
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(24.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    shape = RoundedCornerShape(10.dp),
+                    color = SoundboundColours.Ink800,
+                    contentColor = SoundboundColours.Paper100,
                 ) {
                     Text(
                         text = message,
-                        style = MaterialTheme.typography.bodyMedium,
+                        fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     )
+                }
+            }
+
+            // Clear the message after a few seconds, the way a snackbar would.
+            LaunchedEffect(statusMessage) {
+                if (statusMessage != null) {
+                    delay(4_000)
+                    statusMessage = null
                 }
             }
         }

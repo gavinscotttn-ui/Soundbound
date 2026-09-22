@@ -109,6 +109,7 @@ fun SoundboundApp(
     }
 
     SoundboundTheme(settings = settings) {
+      Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = modifier.fillMaxSize(),
             snackbarHost = { SnackbarHost(snackbarHost) },
@@ -291,6 +292,7 @@ fun SoundboundApp(
                 }
             }
         }
+      }
     }
 }
 
