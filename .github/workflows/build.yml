@@ -31,6 +31,11 @@ jobs:
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Temporarily off while the Android and Windows configuration failure is diagnosed:
+          # both jobs restore a Gradle home saved by a failed run, and a stale cache is one of
+          # the two explanations being ruled out here.
+          cache-disabled: true
 
       # -Psoundbound.withUi=false keeps this job to the pure-Kotlin modules, which need no Android
       # SDK and no Google Maven. It is also the configuration the engine is developed against.
@@ -69,9 +74,14 @@ jobs:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Temporarily off while the Android and Windows configuration failure is diagnosed:
+          # both jobs restore a Gradle home saved by a failed run, and a stale cache is one of
+          # the two explanations being ruled out here.
+          cache-disabled: true
 
       - name: Build the debug APK
-        run: ./gradlew :androidApp:assembleDebug
+        run: ./gradlew :androidApp:assembleDebug --stacktrace
 
       # Unsigned, because the signing key is not in the repository. Install the debug APK for
       # everyday use, or sign this one with your own key — see docs/building.md.
@@ -124,12 +134,17 @@ jobs:
           java-version: "17"
 
       - uses: gradle/actions/setup-gradle@v4
+        with:
+          # Temporarily off while the Android and Windows configuration failure is diagnosed:
+          # both jobs restore a Gradle home saved by a failed run, and a stale cache is one of
+          # the two explanations being ruled out here.
+          cache-disabled: true
 
       # The desktop app needs no Android SDK. AGP itself is still resolved — :ui declares it so
       # that it can add an Android target — but withAndroid=false stops that target being added,
       # and with it the need for an installed SDK.
       - name: Package the desktop app
-        run: ./gradlew -Psoundbound.withAndroid=false :desktopApp:packageDistributionForCurrentOS
+        run: ./gradlew -Psoundbound.withAndroid=false :desktopApp:packageDistributionForCurrentOS --stacktrace
 
       - name: Upload the installer
         uses: actions/upload-artifact@v4
