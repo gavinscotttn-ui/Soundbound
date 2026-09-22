@@ -60,6 +60,12 @@ include(":pdfjvm")
 val withUi = (providers.gradleProperty("soundbound.withUi").orNull ?: "true").toBoolean()
 val withAndroid = (providers.gradleProperty("soundbound.withAndroid").orNull ?: "true").toBoolean()
 
+// Printed because a `-P` flag that does not arrive is otherwise invisible: the build simply
+// configures more than was asked for, and fails somewhere that does not name the cause.
+gradle.rootProject {
+    logger.lifecycle("Soundbound: withUi=$withUi withAndroid=$withAndroid")
+}
+
 if (withUi) {
     include(":ui")
     include(":desktopApp")

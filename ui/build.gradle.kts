@@ -53,9 +53,27 @@ kotlin {
     }
 }
 
-// The Android library extension is configured from a separate script, because this file has to
-// compile when AGP is absent from the classpath entirely — and a reference to LibraryExtension
-// anywhere in it would stop that. An applied script is only compiled if it is actually applied.
+// The Android library extension is configured by name rather than through LibraryExtension.
+//
+// This file has to compile on a machine where AGP is absent from the class path entirely, and a
+// reference to an AGP type anywhere in it would stop that. Moving the block to a script applied
+// only when wanted does not help: a script applied with `apply(from = ...)` is compiled against
+// its own class path, not the one the plugins here provide, so the AGP types are out of reach
+// there too. Configuring the extension dynamically compiles either way, at the cost of these
+// names being checked when the build runs rather than when the script compiles — which the
+// Android CI job does on every push.
 if (withAndroid) {
-    apply(from = "android.gradle.kts")
+    extensions.getByName("android").withGroovyBuilder {
+        setProperty("namespace", "app.soundbound.ui")
+        setProperty("compileSdk", 36)
+
+        "defaultConfig" {
+            setProperty("minSdk", 26)
+        }
+
+        "compileOptions" {
+            setProperty("sourceCompatibility", JavaVersion.VERSION_17)
+            setProperty("targetCompatibility", JavaVersion.VERSION_17)
+        }
+    }
 }

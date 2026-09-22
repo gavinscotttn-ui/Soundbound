@@ -129,6 +129,9 @@ jobs:
       # that it can add an Android target — but withAndroid=false stops that target being added,
       # and with it the need for an installed SDK.
       - name: Package the desktop app
+        # bash on every runner, Windows included. Through PowerShell the -P flag below did not
+        # reach Gradle, and the build quietly configured an Android target nobody asked for.
+        shell: bash
         run: ./gradlew -Psoundbound.withAndroid=false :desktopApp:packageDistributionForCurrentOS
 
       - name: Upload the installer
