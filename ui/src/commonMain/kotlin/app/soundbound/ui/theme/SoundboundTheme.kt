@@ -50,8 +50,8 @@ data class SoundboundAccents(
 
 val LocalAccents = staticCompositionLocalOf {
     SoundboundAccents(
-        speaking = SoundboundColours.Amber500,
-        speakingContainer = SoundboundColours.Amber300,
+        speaking = SoundboundColours.Magenta600,
+        speakingContainer = SoundboundColours.Magenta100,
         progressTrack = SoundboundColours.Paper300,
         coverPlaceholder = SoundboundColours.Ink100,
         success = SoundboundColours.Success,
@@ -88,8 +88,9 @@ fun SoundboundTheme(
 
     val accents = remember(scheme, dark) {
         SoundboundAccents(
-            speaking = if (dark) SoundboundColours.Amber400 else SoundboundColours.Amber600,
-            speakingContainer = if (dark) SoundboundColours.Amber700 else SoundboundColours.Amber300,
+            speaking = if (dark) SoundboundColours.Magenta300 else SoundboundColours.Magenta600,
+            speakingContainer =
+                if (dark) SoundboundColours.Magenta800 else SoundboundColours.Magenta100,
             progressTrack = scheme.surfaceVariant,
             coverPlaceholder = if (dark) SoundboundColours.Ink700 else SoundboundColours.Ink100,
             success = SoundboundColours.Success,

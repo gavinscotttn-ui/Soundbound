@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The mark: an open book whose pages are a waveform. Drawn on the 108dp adaptive-icon canvas with
-  everything inside the central 66dp safe zone, so no launcher shape can clip it.
+  Soundbound's mark: headphones over an open book.
+
+  Traced from branding/soundbound-icon.png by tools/trace-mark.py rather than drawn by hand, so
+  that the launcher icon, the splash screen and the notification badge are all the same shape as
+  the artwork. Re-run that tool if the artwork changes; do not edit the path here.
+
+  Laid out on the 108dp adaptive-icon canvas, fitted to the central safe circle so that no
+  launcher mask can clip it.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -9,25 +15,11 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- The open book. -->
     <path
-        android:pathData="M54,38 C48,33 40,31.5 30,33 L30,74 C40,72.5 48,74 54,79 C60,74 68,72.5 78,74 L78,33 C68,31.5 60,33 54,38 Z"
-        android:strokeWidth="3.2"
-        android:strokeColor="#FFF3E6"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-
-    <!-- The spine. -->
-    <path
-        android:pathData="M54,38 L54,79"
-        android:strokeWidth="3.2"
-        android:strokeColor="#FFF3E6"
-        android:strokeLineCap="round" />
-
-    <!-- The waveform across both pages, in the amber reserved for the voice. -->
-    <path
-        android:pathData="M37,56 L37,56 M42,50 L42,62 M47,45 L47,67 M61,47 L61,65 M66,42 L66,70 M71,52 L71,60"
-        android:strokeWidth="3.4"
-        android:strokeColor="#E89B2C"
-        android:strokeLineCap="round" />
+        android:fillColor="#FFFDF7FB"
+        android:pathData="M35.39,48.96L37.91,49.13L40.17,49.65L42.78,50.52L45.57,51.83L47.83,53.22L49.39,54.43L51.04,56.09L52.09,57.57L52.87,59.39L53.13,60.87L53.04,83.91L51.3,81.83L49.57,80.26L47.13,78.61L44.78,77.48L42.7,76.78L40.35,76.26L38.87,76.09L34.87,76.26L34.52,76.0L34.43,49.91L34.7,49.39L35.3,49.04Z
+            M71.48,48.96L72.87,49.04L73.39,49.39L73.65,50.0L73.57,76.0L73.22,76.26L71.48,76.09L68.0,76.17L65.39,76.7L63.04,77.48L60.09,78.96L57.57,80.96L57.13,81.04L57.04,81.48L56.7,81.57L56.7,81.83L55.74,82.78L55.3,83.57L55.04,83.83L54.96,83.74L54.96,60.52L55.39,58.78L56.17,57.22L57.39,55.65L59.3,53.91L61.3,52.52L64.09,51.04L66.26,50.17L69.3,49.3L71.39,49.04Z
+            M52.0,24.09L56.17,24.09L57.83,24.26L62.52,25.3L64.52,26.0L67.65,27.48L69.83,28.78L72.43,30.78L74.52,32.78L76.35,34.96L77.91,37.3L79.3,40.0L79.91,41.48L80.87,44.61L81.3,47.04L81.39,49.04L78.61,48.96L77.57,49.22L77.22,46.96L76.43,44.43L75.22,41.83L74.35,40.35L72.43,37.83L70.43,35.83L68.26,34.09L66.17,32.78L64.26,31.83L61.3,30.7L57.13,29.83L53.48,29.65L49.91,30.0L46.7,30.78L43.74,31.91L41.74,32.96L39.83,34.17L37.48,36.09L35.83,37.74L33.3,41.13L31.65,44.43L30.78,47.39L30.52,49.22L29.22,48.96L27.3,48.96L26.7,49.13L26.7,47.48L27.13,44.87L28.0,41.91L29.04,39.39L31.22,35.65L33.3,33.04L35.04,31.3L36.26,30.26L38.96,28.35L40.78,27.3L43.22,26.17L47.57,24.78L50.35,24.26L51.91,24.17Z
+            M27.13,50.35L29.3,50.35L30.43,50.7L31.65,51.48L32.43,52.7L32.61,53.3L32.61,66.26L32.52,67.65L32.43,67.3L31.74,67.3L31.65,67.65L31.3,67.65L31.22,68.0L30.87,68.09L30.87,68.35L30.43,68.35L30.35,68.7L30.09,68.7L30.0,69.04L29.74,69.04L29.65,69.39L29.39,69.39L29.3,69.74L28.96,69.83L28.96,70.17L28.26,70.26L28.26,71.22L28.0,71.22L27.91,71.57L27.65,71.57L27.57,71.91L27.22,72.0L27.22,72.61L26.87,72.7L26.87,73.3L26.7,73.39L26.7,74.7L26.26,74.7L25.22,74.35L23.3,73.3L21.74,71.74L20.61,69.83L20.17,68.43L20.0,67.22L20.0,57.91L20.17,56.7L20.7,55.13L21.13,54.26L22.17,52.87L24.17,51.3L25.57,50.7L27.04,50.43Z
+            M79.48,50.26L81.04,50.35L82.17,50.61L84.43,51.65L85.13,52.17L86.43,53.57L87.39,55.22L87.83,56.43L88.0,57.39L88.0,67.39L87.39,69.65L86.7,70.96L85.91,72.0L84.35,73.39L82.61,74.26L82.61,74.09L82.87,74.0L82.87,72.7L82.0,72.61L81.74,71.91L81.13,71.91L81.04,70.96L80.7,70.87L80.61,70.52L80.35,70.52L80.35,69.83L80.0,69.74L79.91,69.39L79.3,69.39L79.22,69.04L78.61,69.04L78.61,68.78L78.26,68.7L78.26,68.43L77.91,68.35L77.91,68.09L77.57,68.0L77.48,67.65L76.87,67.65L76.87,67.39L76.52,67.3L76.43,66.96L75.57,67.04L75.48,66.87L75.48,53.3L76.0,52.0L76.61,51.3L77.57,50.7L78.78,50.35L79.39,50.35Z" />
 </vector>

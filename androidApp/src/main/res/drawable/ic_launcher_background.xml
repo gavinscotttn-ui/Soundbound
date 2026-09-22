@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The tile behind the mark: the artwork's magenta, as a diagonal gradient from the lighter pink
+  at the top left to the deep magenta at the bottom right. The endpoints are sampled from
+  branding/soundbound-icon.png so the launcher icon matches the artwork exactly.
+
+  Drawn across the full 108dp canvas rather than the safe zone, because the launcher's mask
+  crops the background and any inset would show as a pale border.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="6"
+                android:startY="0"
+                android:endX="102"
+                android:endY="108">
+                <item android:offset="0.0" android:color="#FFFD8ABE" />
+                <item android:offset="0.42" android:color="#FFEE1179" />
+                <item android:offset="1.0" android:color="#FFAE0160" />
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>

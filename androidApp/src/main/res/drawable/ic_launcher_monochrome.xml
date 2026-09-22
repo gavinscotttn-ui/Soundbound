@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The splash mark. Android's splash screen API centres this on the window background and masks it
-  to a circle, so the mark is drawn at the same size as the launcher foreground and nothing else
-  is added around it.
+  The mark as a single flat shape, for Android's themed icons. The launcher supplies the colour
+  from the wallpaper palette, so this must be one opaque silhouette and nothing else.
 
   Same geometry as ic_launcher_foreground; both come from tools/trace-mark.py.
 -->
@@ -13,7 +12,7 @@
     android:viewportHeight="108">
 
     <path
-        android:fillColor="#FFFDF7FB"
+        android:fillColor="#FF000000"
         android:pathData="M35.39,48.96L37.91,49.13L40.17,49.65L42.78,50.52L45.57,51.83L47.83,53.22L49.39,54.43L51.04,56.09L52.09,57.57L52.87,59.39L53.13,60.87L53.04,83.91L51.3,81.83L49.57,80.26L47.13,78.61L44.78,77.48L42.7,76.78L40.35,76.26L38.87,76.09L34.87,76.26L34.52,76.0L34.43,49.91L34.7,49.39L35.3,49.04Z
             M71.48,48.96L72.87,49.04L73.39,49.39L73.65,50.0L73.57,76.0L73.22,76.26L71.48,76.09L68.0,76.17L65.39,76.7L63.04,77.48L60.09,78.96L57.57,80.96L57.13,81.04L57.04,81.48L56.7,81.57L56.7,81.83L55.74,82.78L55.3,83.57L55.04,83.83L54.96,83.74L54.96,60.52L55.39,58.78L56.17,57.22L57.39,55.65L59.3,53.91L61.3,52.52L64.09,51.04L66.26,50.17L69.3,49.3L71.39,49.04Z
             M52.0,24.09L56.17,24.09L57.83,24.26L62.52,25.3L64.52,26.0L67.65,27.48L69.83,28.78L72.43,30.78L74.52,32.78L76.35,34.96L77.91,37.3L79.3,40.0L79.91,41.48L80.87,44.61L81.3,47.04L81.39,49.04L78.61,48.96L77.57,49.22L77.22,46.96L76.43,44.43L75.22,41.83L74.35,40.35L72.43,37.83L70.43,35.83L68.26,34.09L66.17,32.78L64.26,31.83L61.3,30.7L57.13,29.83L53.48,29.65L49.91,30.0L46.7,30.78L43.74,31.91L41.74,32.96L39.83,34.17L37.48,36.09L35.83,37.74L33.3,41.13L31.65,44.43L30.78,47.39L30.52,49.22L29.22,48.96L27.3,48.96L26.7,49.13L26.7,47.48L27.13,44.87L28.0,41.91L29.04,39.39L31.22,35.65L33.3,33.04L35.04,31.3L36.26,30.26L38.96,28.35L40.78,27.3L43.22,26.17L47.57,24.78L50.35,24.26L51.91,24.17Z

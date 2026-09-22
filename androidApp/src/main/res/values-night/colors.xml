@@ -2,5 +2,6 @@
 <resources>
     <!-- SoundboundColours.Ink900. -->
     <color name="window_background">#12100E</color>
-    <color name="splash_background">#12100E</color>
+    <!-- The splash keeps the brand tile in both themes; the mark is pale either way. -->
+    <color name="splash_background">#AE0160</color>
 </resources>

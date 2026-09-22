@@ -9,9 +9,13 @@ import androidx.compose.ui.graphics.Color
 /**
  * Soundbound's palette.
  *
- * The interface is built around ink on warm paper, with a single amber accent for anything to
- * do with the voice. The point is that the app should feel like a reading surface, not a media
- * player that happens to contain text, so the chrome stays quiet and the page gets the contrast.
+ * The interface is built around ink on warm paper, with a single magenta accent — the brand
+ * colour, taken from the app's own mark — for anything to do with the voice. The point is that
+ * the app should feel like a reading surface, not a media player that happens to contain text,
+ * so the chrome stays quiet and the page gets the contrast.
+ *
+ * The page itself is never tinted. A magenta interface around a warm white page is the right way
+ * round; a magenta page would be unreadable for six hours at a stretch.
  */
 object SoundboundColours {
 
@@ -33,12 +37,23 @@ object SoundboundColours {
     val Paper200 = Color(0xFFEFE9DD)
     val Paper300 = Color(0xFFE4DCCB)
 
-    // Amber: the voice. Playback, the active sentence, anything currently speaking.
+    // Magenta: the brand, and the voice. Playback, the active sentence, anything speaking.
+    // Sampled from the app's mark: the pale tint of the headphones through to the deep magenta
+    // at the bottom of the tile.
+    val Magenta50 = Color(0xFFFFF0F7)
+    val Magenta100 = Color(0xFFFFD9EC)
+    val Magenta200 = Color(0xFFFDA6CD)
+    val Magenta300 = Color(0xFFFD8ABE)
+    val Magenta400 = Color(0xFFF74E97)
+    val Magenta500 = Color(0xFFEE1179)
+    val Magenta600 = Color(0xFFD6006E)
+    val Magenta700 = Color(0xFFAE0160)
+    val Magenta800 = Color(0xFF7D0044)
+
+    // Amber is kept for the reading-warmth filter and the sepia page, which want a warm light
+    // rather than the brand colour.
     val Amber300 = Color(0xFFFFD08A)
-    val Amber400 = Color(0xFFFFB74D)
     val Amber500 = Color(0xFFE89B2C)
-    val Amber600 = Color(0xFFC57C14)
-    val Amber700 = Color(0xFF9A5F0C)
 
     // Teal: the quiet secondary, used for selection and progress.
     val Teal200 = Color(0xFF9CD3CC)
@@ -58,10 +73,10 @@ object SoundboundColours {
     val Success = Color(0xFF2E7D32)
 
     val Light: ColorScheme = lightColorScheme(
-        primary = Amber600,
+        primary = Magenta600,
         onPrimary = Color.White,
-        primaryContainer = Amber300,
-        onPrimaryContainer = Color(0xFF2E1A00),
+        primaryContainer = Magenta100,
+        onPrimaryContainer = Magenta800,
         secondary = Teal600,
         onSecondary = Color.White,
         secondaryContainer = Teal200,
@@ -76,7 +91,7 @@ object SoundboundColours {
         onSurface = Ink900,
         surfaceVariant = Paper200,
         onSurfaceVariant = Ink500,
-        surfaceTint = Amber600,
+        surfaceTint = Magenta600,
         inverseSurface = Ink800,
         inverseOnSurface = Paper100,
         error = Danger,
@@ -89,10 +104,10 @@ object SoundboundColours {
     )
 
     val Dark: ColorScheme = darkColorScheme(
-        primary = Amber400,
-        onPrimary = Color(0xFF3A2400),
-        primaryContainer = Amber700,
-        onPrimaryContainer = Amber300,
+        primary = Magenta300,
+        onPrimary = Magenta800,
+        primaryContainer = Magenta700,
+        onPrimaryContainer = Magenta100,
         secondary = Teal200,
         onSecondary = Color(0xFF00352F),
         secondaryContainer = Teal800,
@@ -107,7 +122,7 @@ object SoundboundColours {
         onSurface = Paper100,
         surfaceVariant = Ink700,
         onSurfaceVariant = Ink200,
-        surfaceTint = Amber400,
+        surfaceTint = Magenta300,
         inverseSurface = Paper100,
         inverseOnSurface = Ink900,
         error = Color(0xFFFFB4AB),
@@ -157,9 +172,9 @@ data class ReaderPalette(
             muted = Color(0xFF6B6459),
             heading = Color(0xFF0E0C0A),
             link = SoundboundColours.Teal600,
-            selection = Color(0x33E89B2C),
-            speakingBackground = Color(0x1FE89B2C),
-            speakingWord = Color(0x4DE89B2C),
+            selection = Color(0x2EEE1179),
+            speakingBackground = Color(0x1AEE1179),
+            speakingWord = Color(0x47EE1179),
             rule = SoundboundColours.Paper300,
             isDark = false,
         )
@@ -195,9 +210,9 @@ data class ReaderPalette(
             muted = Color(0xFF8B8781),
             heading = Color(0xFFEDEAE4),
             link = SoundboundColours.Teal200,
-            selection = Color(0x40FFB74D),
-            speakingBackground = Color(0x24FFB74D),
-            speakingWord = Color(0x59FFB74D),
+            selection = Color(0x40FD8ABE),
+            speakingBackground = Color(0x26FD8ABE),
+            speakingWord = Color(0x5CFD8ABE),
             rule = Color(0xFF2A2C31),
             isDark = true,
         )
@@ -216,8 +231,8 @@ data class ReaderPalette(
             heading = Color(0xFFFFFFFF),
             link = Color(0xFF7FD4FF),
             selection = Color(0x66FFFFFF),
-            speakingBackground = Color(0x33FFD54F),
-            speakingWord = Color(0x80FFD54F),
+            speakingBackground = Color(0x38FD8ABE),
+            speakingWord = Color(0x8AFD8ABE),
             rule = Color(0xFF4A4A4A),
             isDark = true,
         )

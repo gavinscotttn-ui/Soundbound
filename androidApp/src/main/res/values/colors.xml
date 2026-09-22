@@ -2,6 +2,8 @@
 <resources>
     <!-- Matches SoundboundColours.Paper50, so the window behind Compose is never a white flash. -->
     <color name="window_background">#FDFBF7</color>
-    <color name="splash_background">#FDFBF7</color>
-    <color name="ic_launcher_background">#12100E</color>
+    <!-- The brand magenta, from the artwork. The splash mark is pale, so it needs the tile. -->
+    <color name="splash_background">#D6006E</color>
+    <!-- Only reached by a launcher that ignores the adaptive icon's gradient background. -->
+    <color name="ic_launcher_background">#D6006E</color>
 </resources>
