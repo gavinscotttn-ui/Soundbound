@@ -1,12 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
+// AGP is not declared here. It is on the root project's buildscript classpath when an Android
+// target is wanted — see the note in the root build file for why it has to be there — and this
+// module simply applies it.
 plugins {
     id("org.jetbrains.kotlin.multiplatform")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.compose")
-    // Resolved but not applied here: whether the Android target exists is decided below, so
-    // that the shared interface and the desktop app can be built without an Android SDK.
-    id("com.android.library") apply false
 }
 
 val withAndroid = (providers.gradleProperty("soundbound.withAndroid").orNull ?: "true").toBoolean()
@@ -53,18 +53,9 @@ kotlin {
     }
 }
 
+// The Android library extension is configured from a separate script, because this file has to
+// compile when AGP is absent from the classpath entirely — and a reference to LibraryExtension
+// anywhere in it would stop that. An applied script is only compiled if it is actually applied.
 if (withAndroid) {
-    extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
-        namespace = "app.soundbound.ui"
-        compileSdk = 36
-
-        defaultConfig {
-            minSdk = 26
-        }
-
-        compileOptions {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
-        }
-    }
+    apply(from = "android.gradle.kts")
 }
