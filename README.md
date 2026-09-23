@@ -1,6 +1,7 @@
 # Soundbound
 
-An ebook reader that reads aloud, properly, with no connection of any kind.
+An ebook reader that reads aloud, properly, and an audiobook player — with no connection of any
+kind.
 
 Android, macOS and Windows. Your books, your voice, your device. Nothing is uploaded, there is no
 account, and the only time the app touches the network at all is the moment you choose to install
@@ -31,13 +32,27 @@ picked out, and the page scrolls to keep up — but only when the narration has 
 screen, so it never fights your thumb. Reading and listening share one position: put the phone
 down mid-sentence and pick the book up on the desktop where the voice left off.
 
+**Plays the audiobooks you already own.** Add a folder of MP3s or a single M4B and it becomes one
+book with one timeline: same library, same bookmarks, same resume, same lock-screen controls. The
+chapter list inside an M4B is read out of the file, because a nine-hour recording with no way to
+move about in it is no use at all. Tags decide the order where they exist, file names where they
+do not, and "Part 10" comes after "Part 2" rather than after "Part 1". Stereo is kept stereo. See
+[docs/audiobooks.md](docs/audiobooks.md).
+
 **Exports to MP3.** Pick chapters, pick a bit rate, and Soundbound renders the book *flat out* —
 far faster than listening to it — into tagged MP3 files with cover art and track numbers. Put them
 on a USB stick, an old iPod, or the car.
 
+**Keeps playing when you put it away.** A proper media session, so the lock screen, the media
+carousel, a Bluetooth headset, a car and a watch all control it — with artwork, a scrubber and the
+time remaining. Audio focus means a phone call interrupts the book and a navigation prompt ducks
+it rather than talking over it, and pulling your headphones out pauses rather than broadcasting
+your book to the carriage.
+
 **Looks like something you want to read in.** Seven reading surfaces from Paper to true black,
 adjustable type size, leading, measure, margins and paragraph spacing, six reading faces, and a
-library built around covers rather than a spreadsheet.
+library built around covers rather than a spreadsheet. A short tick under the thumb when a chapter
+changes, which you can turn off.
 
 ---
 
@@ -130,11 +145,11 @@ More on the design in [docs/architecture.md](docs/architecture.md).
 
 | Module        | What it is                                                                 |
 |---------------|----------------------------------------------------------------------------|
-| `:core`       | Parsing, text pipeline, speech engines, playback, library, export. No UI.   |
+| `:core`       | Parsing, text pipeline, speech engines, audiobook tags and chapters, playback, library, export. No UI. |
 | `:pdfjvm`     | Apache PDFBox binding for the desktop. Kept out of `:core` so no `java.awt` reference reaches the Android build. |
 | `:ui`         | The whole interface, in Compose Multiplatform. Shared by all three targets. |
-| `:androidApp` | `AudioTrack`, the Storage Access Framework, `TextToSpeech`, PDFBox-Android, the playback service. |
-| `:desktopApp` | `SourceDataLine`, Swing pickers, `say` / SAPI, Apache PDFBox, packaging.    |
+| `:androidApp` | `AudioTrack`, `MediaCodec`, the media session, the Storage Access Framework, `TextToSpeech`, PDFBox-Android, the playback service. |
+| `:desktopApp` | `SourceDataLine`, MP3 decoding, Swing pickers, `say` / SAPI, Apache PDFBox, packaging. |
 
 Build flags, for working on one part without the rest:
 
@@ -147,6 +162,20 @@ Build flags, for working on one part without the rest:
 
 ## Honest limitations
 
+- **Nothing here has been run on a device by its author.** It is built and tested by machine —
+  every push compiles all five artefacts and runs the test suite — but the sandbox it was written
+  in has no Android SDK, no sound card and no access to the sites that host the voice models. The
+  parts that can be tested without those are tested thoroughly; the first launch on a real phone
+  is a genuine first launch.
+- **The desktop cannot play AAC**, which is what an `.m4b` holds. Android plays those with the
+  phone's own decoder. A plain Java runtime has none, and bundling one would add tens of
+  megabytes — so the desktop refuses such a file with a message saying exactly that, rather than
+  importing a book that then makes no sound. MP3, WAV, AIFF and AU play everywhere.
+- **An MP3's length is worked out, not read.** MP3 has no header stating its duration. A Xing or
+  VBRI header is believed where there is one, and otherwise the length comes from the bitrate and
+  the file size, which is exact for a constant-bitrate file and an estimate for a variable one.
+  The decoder corrects it when the file is first opened. Seeking within a variable-bitrate MP3 is
+  likewise an estimate, and can land a second or two out.
 - **Kokoro support is written but not proven.** It is covered by tests for the tokeniser, the
   configuration parser and the style-table reader, and it reads the vocabulary from each pack's own
   configuration rather than assuming one — but it has not been run against a real model, because
