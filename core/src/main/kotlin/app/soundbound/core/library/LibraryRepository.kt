@@ -343,6 +343,9 @@ class LibraryRepository(libraryFile: File) {
             tags = record.tags.toSet(),
             isFavourite = record.favourite,
             finishedAtEpochMillis = record.finishedAt,
+            audiobook = record.audiobook?.toDomain(
+                BookMetadata(title = record.title, authors = record.authors),
+            ),
         )
         return LibraryEntry(
             book = book,
@@ -379,6 +382,7 @@ class LibraryRepository(libraryFile: File) {
             tags = book.tags.toList().sorted(),
             favourite = book.isFavourite,
             finishedAt = book.finishedAtEpochMillis,
+            audiobook = book.audiobook?.let(AudiobookRecord::of),
             position = PositionRecord.of(entry.position),
             bookmarks = entry.bookmarks.map(BookmarkRecord::of),
             highlights = entry.highlights.map(HighlightRecord::of),

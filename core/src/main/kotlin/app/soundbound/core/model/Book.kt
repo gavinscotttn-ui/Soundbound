@@ -5,7 +5,21 @@ enum class BookFormat(val displayName: String, val extensions: List<String>) {
     EPUB("EPUB", listOf("epub")),
     PDF("PDF", listOf("pdf")),
     PLAIN_TEXT("Text", listOf("txt", "text", "md", "markdown")),
+
+    /**
+     * A book that already exists as audio, rather than one Soundbound reads aloud.
+     *
+     * One entry covers a single M4B and a folder of four hundred MP3s alike: what differs is how
+     * many files are behind it, which the track list records.
+     */
+    AUDIOBOOK(
+        "Audiobook",
+        listOf("mp3", "m4a", "m4b", "aac", "ogg", "oga", "opus", "flac", "wav", "wma"),
+    ),
     ;
+
+    /** True when this is recorded audio rather than text to be spoken. */
+    val isAudio: Boolean get() = this == AUDIOBOOK
 
     companion object {
         fun fromExtension(ext: String): BookFormat? {
@@ -106,6 +120,17 @@ data class Book(
     val tags: Set<String> = emptySet(),
     val isFavourite: Boolean = false,
     val finishedAtEpochMillis: Long? = null,
+    /**
+     * The files and chapters, for an audiobook. Null for everything else.
+     *
+     * Held here rather than re-read on every open: reading the tags out of four hundred MP3s
+     * takes long enough to be noticeable, and the durations must be added up before the book can
+     * be shown at all.
+     */
+    val audiobook: app.soundbound.core.audiobook.Audiobook? = null,
 ) {
     val isFinished: Boolean get() = finishedAtEpochMillis != null
+
+    /** How long the book runs, for an audiobook. Zero for a book that is read aloud instead. */
+    val audioDurationMillis: Long get() = audiobook?.totalDurationMillis ?: 0
 }

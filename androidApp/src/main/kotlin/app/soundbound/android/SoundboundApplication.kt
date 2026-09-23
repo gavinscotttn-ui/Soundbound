@@ -2,6 +2,7 @@ package app.soundbound.android
 
 import android.app.Application
 import android.content.Context
+import app.soundbound.android.audio.AndroidAudioDecoders
 import app.soundbound.android.audio.AndroidAudioSink
 import app.soundbound.android.pdf.AndroidPdfBackend
 import app.soundbound.android.tts.AndroidSystemTts
@@ -90,6 +91,8 @@ class SoundboundApplication : Application() {
             opener = opener,
             importer = BookImporter(library, opener, paths.coversDirectory),
             audioSink = audioSink,
+            // The device's own codecs: everything the phone can play, Soundbound can play.
+            audioDecoders = AndroidAudioDecoders(this),
             scope = scope,
             deviceLanguageTag = Locale.getDefault().toLanguageTag(),
         )
@@ -140,7 +143,8 @@ class SoundboundApplication : Application() {
     private fun followPlaybackWithForegroundService() {
         scope.launch {
             var serviceRunning = false
-            engine.player.state
+            // The unified snapshot: the service must run for a recorded audiobook too.
+            engine.playback.snapshot
                 .map { it.status }
                 .distinctUntilChanged()
                 .collect { status ->

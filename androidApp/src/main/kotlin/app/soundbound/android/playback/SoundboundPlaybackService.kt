@@ -16,7 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import app.soundbound.android.MainActivity
 import app.soundbound.android.R
 import app.soundbound.android.SoundboundApplication
-import app.soundbound.core.player.ListeningEstimate
+import app.soundbound.core.player.PlaybackSnapshot
 import app.soundbound.core.player.PlaybackStatus
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -66,14 +66,14 @@ class SoundboundPlaybackService : LifecycleService() {
             ACTION_ATTACH -> requestAudioFocus()
 
             ACTION_PLAY -> lifecycleScope.launch {
-                if (requestAudioFocus()) app.engine.player.play()
+                if (requestAudioFocus()) app.engine.playback.play()
             }
 
-            ACTION_PAUSE -> lifecycleScope.launch { app.engine.player.pause() }
-            ACTION_NEXT -> lifecycleScope.launch { app.engine.player.skipSentences(1) }
-            ACTION_PREVIOUS -> lifecycleScope.launch { app.engine.player.skipSentences(-1) }
+            ACTION_PAUSE -> lifecycleScope.launch { app.engine.playback.pause() }
+            ACTION_NEXT -> lifecycleScope.launch { app.engine.playback.skip(1) }
+            ACTION_PREVIOUS -> lifecycleScope.launch { app.engine.playback.skip(-1) }
             ACTION_STOP -> lifecycleScope.launch {
-                app.engine.player.pause()
+                app.engine.playback.pause()
                 stopForegroundCompat()
                 stopSelf()
             }
@@ -85,7 +85,9 @@ class SoundboundPlaybackService : LifecycleService() {
 
     private fun observePlayback() {
         lifecycleScope.launch {
-            app.engine.player.state.collectLatest { state ->
+            // The unified snapshot, so that a recorded audiobook reaches the lock screen exactly
+            // as a synthesised one does.
+            app.engine.playback.snapshot.collectLatest { state ->
                 publish(state)
                 getSystemService(NotificationManager::class.java)
                     ?.notify(NOTIFICATION_ID, buildNotification())
@@ -98,18 +100,16 @@ class SoundboundPlaybackService : LifecycleService() {
     }
 
     /** Pushes what is playing to the media session, and so to everything watching it. */
-    private fun publish(state: app.soundbound.core.player.ReadAloudState) {
+    private fun publish(state: PlaybackSnapshot) {
         val session = session ?: return
         val entry = app.engine.state.value.activeBookId?.let { app.engine.library.entry(it) }
-        val rate = state.params.rate
 
         // Metadata crosses a process boundary and may carry a bitmap, so it is only re-sent when
         // something a listener would see has actually changed.
         val key = listOf(
             entry?.book?.id?.value,
             state.chapterTitle,
-            state.progress.charactersTotal,
-            rate,
+            state.durationMillis,
         ).joinToString("|")
         if (key != publishedKey) {
             publishedKey = key
@@ -117,7 +117,7 @@ class SoundboundPlaybackService : LifecycleService() {
                 title = entry?.book?.metadata?.title ?: getString(R.string.notification_reading),
                 author = entry?.book?.metadata?.authors?.firstOrNull(),
                 chapter = state.chapterTitle,
-                durationMillis = ListeningEstimate.totalMillis(state.progress, rate),
+                durationMillis = state.durationMillis,
                 // The library stores an absolute path, written when the book was imported.
                 coverFile = entry?.book?.coverImageRef?.let(::File),
             )
@@ -125,13 +125,13 @@ class SoundboundPlaybackService : LifecycleService() {
 
         session.publishState(
             status = state.status,
-            positionMillis = ListeningEstimate.elapsedMillis(state.progress, rate),
-            speed = rate,
+            positionMillis = state.positionMillis,
+            speed = state.speed,
         )
     }
 
     private fun buildNotification(): Notification {
-        val state = app.engine.player.state.value
+        val state = app.engine.playback.snapshot.value
         val entry = app.engine.state.value.activeBookId?.let { app.engine.library.entry(it) }
         val title = entry?.book?.metadata?.title ?: getString(R.string.notification_reading)
         val isPlaying = state.status == PlaybackStatus.PLAYING
@@ -208,38 +208,36 @@ class SoundboundPlaybackService : LifecycleService() {
      */
     private inner class SessionCallbacks : PlaybackSession.Callbacks {
         override fun onPlay() {
-            lifecycleScope.launch { if (requestAudioFocus()) app.engine.player.play() }
+            lifecycleScope.launch { if (requestAudioFocus()) app.engine.playback.play() }
         }
 
-        override fun onPause() = launchOnPlayer { pause() }
+        override fun onPause() = onPlayback { pause() }
+
         override fun onStop() {
             lifecycleScope.launch {
-                app.engine.player.pause()
+                app.engine.playback.pause()
                 stopForegroundCompat()
                 stopSelf()
             }
         }
 
-        override fun onSkipToNext() = launchOnPlayer { skipChapter(1) }
-        override fun onSkipToPrevious() = launchOnPlayer { skipChapter(-1) }
-        override fun onFastForward() = launchOnPlayer { skipSentences(1) }
-        override fun onRewind() = launchOnPlayer { skipSentences(-1) }
+        override fun onSkipToNext() = onPlayback { skipChapter(1) }
+        override fun onSkipToPrevious() = onPlayback { skipChapter(-1) }
+        override fun onFastForward() = onPlayback { skip(1) }
+        override fun onRewind() = onPlayback { skip(-1) }
 
         override fun onSeekTo(positionMillis: Long) {
-            val state = app.engine.player.state.value
-            val total = ListeningEstimate.totalMillis(state.progress, state.params.rate)
+            val total = app.engine.playback.snapshot.value.durationMillis
             if (total <= 0) return
-            launchOnPlayer { seekToFraction(positionMillis.toDouble() / total) }
+            onPlayback { seekToFraction(positionMillis.toDouble() / total) }
         }
 
-        override fun onSetSpeed(speed: Float) {
-            launchOnPlayer { setParams(state.value.params.copy(rate = speed.coerceIn(0.5f, 3f))) }
-        }
+        override fun onSetSpeed(speed: Float) = onPlayback { setSpeed(speed.coerceIn(0.5f, 3.5f)) }
 
-        private fun launchOnPlayer(
-            block: suspend app.soundbound.core.player.ReadAloudController.() -> Unit,
+        private fun onPlayback(
+            block: suspend app.soundbound.core.player.Playback.() -> Unit,
         ) {
-            lifecycleScope.launch { app.engine.player.block() }
+            lifecycleScope.launch { app.engine.playback.block() }
         }
     }
 
@@ -313,13 +311,13 @@ class SoundboundPlaybackService : LifecycleService() {
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> lifecycleScope.launch {
                 wasPlayingBeforeFocusLoss = false
-                app.engine.player.pause()
+                app.engine.playback.pause()
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> lifecycleScope.launch {
                 wasPlayingBeforeFocusLoss =
-                    app.engine.player.state.value.status == PlaybackStatus.PLAYING
-                app.engine.player.pause()
+                    app.engine.playback.snapshot.value.status == PlaybackStatus.PLAYING
+                app.engine.playback.pause()
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
@@ -328,8 +326,8 @@ class SoundboundPlaybackService : LifecycleService() {
                 } else {
                     lifecycleScope.launch {
                         wasPlayingBeforeFocusLoss =
-                            app.engine.player.state.value.status == PlaybackStatus.PLAYING
-                        app.engine.player.pause()
+                            app.engine.playback.snapshot.value.status == PlaybackStatus.PLAYING
+                        app.engine.playback.pause()
                     }
                 }
             }
@@ -338,7 +336,7 @@ class SoundboundPlaybackService : LifecycleService() {
                 app.audioSink.duck(false)
                 if (wasPlayingBeforeFocusLoss) {
                     wasPlayingBeforeFocusLoss = false
-                    lifecycleScope.launch { app.engine.player.play() }
+                    lifecycleScope.launch { app.engine.playback.play() }
                 }
             }
         }
@@ -352,7 +350,7 @@ class SoundboundPlaybackService : LifecycleService() {
                 when (intent?.action) {
                     AudioManager.ACTION_AUDIO_BECOMING_NOISY -> lifecycleScope.launch {
                         // Headphones pulled out: pause rather than blasting the book out loud.
-                        app.engine.player.pause()
+                        app.engine.playback.pause()
                     }
                 }
             }

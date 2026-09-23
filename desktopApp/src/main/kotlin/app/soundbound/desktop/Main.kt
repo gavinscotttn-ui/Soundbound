@@ -35,6 +35,7 @@ import app.soundbound.core.tts.onnx.PiperTtsEngine
 import app.soundbound.core.tts.onnx.VoiceStore
 import app.soundbound.core.tts.system.SystemTtsEngine
 import app.soundbound.core.voices.VoiceInstaller
+import app.soundbound.desktop.audio.DesktopAudioDecoders
 import app.soundbound.desktop.audio.DesktopAudioSink
 import app.soundbound.desktop.platform.DesktopPlatformBridge
 import app.soundbound.desktop.tts.DesktopEspeak
@@ -149,6 +150,9 @@ private fun buildEngine(scope: CoroutineScope): Soundbound {
         opener = opener,
         importer = BookImporter(library, opener, paths.coversDirectory),
         audioSink = DesktopAudioSink(scope),
+        // MP3 and the formats Java's sound system knows. AAC is refused with a message rather
+        // than importing a book that then makes no sound; see DesktopAudioDecoder.
+        audioDecoders = DesktopAudioDecoders(),
         scope = scope,
         deviceLanguageTag = Locale.getDefault().toLanguageTag(),
     )

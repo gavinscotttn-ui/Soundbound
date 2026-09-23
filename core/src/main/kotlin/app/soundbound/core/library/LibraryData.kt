@@ -54,6 +54,82 @@ internal data class BookRecord(
     /** Per-book speech overrides: a specific voice, speed and so on. */
     val voiceId: String? = null,
     val speechRate: Float? = null,
+    /** Present only for an audiobook: the files it is made of, and its chapters. */
+    val audiobook: AudiobookRecord? = null,
+)
+
+/**
+ * An audiobook's files and chapters, as stored.
+ *
+ * Kept in the library rather than re-read from the files on every open. Reading tags out of four
+ * hundred MP3s takes long enough to be noticeable, and the durations have to be added up before
+ * anything can be shown at all.
+ */
+@Serializable
+internal data class AudiobookRecord(
+    val tracks: List<AudioTrackRecord> = emptyList(),
+    val chapters: List<AudioChapterRecord> = emptyList(),
+) {
+    /**
+     * Rebuilds the book's timeline.
+     *
+     * Track start times are recomputed from the durations rather than stored, so that a list
+     * which has been edited — a file removed, or one re-tagged with a corrected length — can
+     * never be internally inconsistent.
+     */
+    fun toDomain(metadata: app.soundbound.core.model.BookMetadata): app.soundbound.core.audiobook.Audiobook {
+        var elapsed = 0L
+        val domainTracks = tracks.mapIndexed { index, track ->
+            app.soundbound.core.audiobook.AudioTrack(
+                index = index,
+                uri = track.uri,
+                title = track.title,
+                durationMillis = track.durationMillis.coerceAtLeast(0),
+                startMillis = elapsed,
+            ).also { elapsed += it.durationMillis }
+        }
+        return app.soundbound.core.audiobook.Audiobook(
+            metadata = metadata,
+            tracks = domainTracks,
+            chapters = chapters.mapIndexed { index, chapter ->
+                app.soundbound.core.audiobook.AudioChapter(
+                    index = index,
+                    title = chapter.title,
+                    startMillis = chapter.startMillis,
+                    endMillis = chapter.endMillis,
+                )
+            },
+        )
+    }
+
+    companion object {
+        fun of(book: app.soundbound.core.audiobook.Audiobook) = AudiobookRecord(
+            tracks = book.tracks.map {
+                AudioTrackRecord(uri = it.uri, title = it.title, durationMillis = it.durationMillis)
+            },
+            chapters = book.chapters.map {
+                AudioChapterRecord(
+                    title = it.title,
+                    startMillis = it.startMillis,
+                    endMillis = it.endMillis,
+                )
+            },
+        )
+    }
+}
+
+@Serializable
+internal data class AudioTrackRecord(
+    val uri: String,
+    val title: String? = null,
+    val durationMillis: Long = 0,
+)
+
+@Serializable
+internal data class AudioChapterRecord(
+    val title: String = "",
+    val startMillis: Long = 0,
+    val endMillis: Long = 0,
 )
 
 @Serializable
@@ -62,12 +138,15 @@ internal data class PositionRecord(
     val characterOffset: Int = 0,
     val sentenceIndex: Int = -1,
     val updatedAt: Long = 0,
+    /** For an audiobook: milliseconds across the whole book. Absent in libraries written before. */
+    val audioMillis: Long = 0,
 ) {
     fun toDomain() = ReadingPosition(
         chapter = app.soundbound.core.model.ChapterIndex(chapter.coerceAtLeast(0)),
         characterOffset = characterOffset.coerceAtLeast(0),
         sentenceIndex = sentenceIndex,
         updatedAtEpochMillis = updatedAt,
+        audioMillis = audioMillis.coerceAtLeast(0),
     )
 
     companion object {
@@ -76,6 +155,7 @@ internal data class PositionRecord(
             characterOffset = position.characterOffset,
             sentenceIndex = position.sentenceIndex,
             updatedAt = position.updatedAtEpochMillis,
+            audioMillis = position.audioMillis,
         )
     }
 }

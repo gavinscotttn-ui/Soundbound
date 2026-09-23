@@ -3,6 +3,7 @@ package app.soundbound.core.session
 import app.soundbound.core.book.BookFileHandle
 import app.soundbound.core.book.synchronised
 import app.soundbound.core.book.BookSource
+import app.soundbound.core.library.AudiobookImporter
 import app.soundbound.core.library.BookImporter
 import app.soundbound.core.library.BookOpener
 import app.soundbound.core.library.ImportResult
@@ -18,7 +19,13 @@ import app.soundbound.core.export.ExportFormat
 import app.soundbound.core.export.ExportProgress
 import app.soundbound.core.export.ExportRequest
 import app.soundbound.core.export.Mp3Settings
+import app.soundbound.core.player.AudioDecodeException
+import app.soundbound.core.player.AudioDecoder
+import app.soundbound.core.player.AudioDecoderFactory
 import app.soundbound.core.player.AudioSink
+import app.soundbound.core.player.AudiobookController
+import app.soundbound.core.player.Playback
+import app.soundbound.core.player.PlaybackMode
 import app.soundbound.core.player.ReadAloudController
 import app.soundbound.core.prefs.SettingsRepository
 import app.soundbound.core.tts.TtsVoice
@@ -84,6 +91,11 @@ class Soundbound(
     val opener: BookOpener,
     val importer: BookImporter,
     private val audioSink: AudioSink,
+    /**
+     * Decodes recorded audiobooks. Null on a build with no audio decoder, where audiobooks are
+     * simply not offered rather than offered and then found not to work.
+     */
+    private val audioDecoders: AudioDecoderFactory? = null,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     /** The device's language, used to pick a first voice. */
     private val deviceLanguageTag: String = "en-GB",
@@ -102,6 +114,23 @@ class Soundbound(
         onPositionChanged = { position -> onListeningPositionChanged(position) },
     )
 
+    /** Plays recorded audiobooks. Shares the audio device with [player]; only one runs at a time. */
+    val audiobookPlayer = AudiobookController(
+        sink = audioSink,
+        decoders = audioDecoders ?: NoAudioDecoders,
+        scope = scope,
+        onPositionChanged = { millis -> onAudioPositionChanged(millis) },
+    )
+
+    /**
+     * One transport for both. Everything above this — the player screen, the notification, the
+     * media session — talks to this rather than choosing a controller for itself.
+     */
+    val playback = Playback(player, audiobookPlayer, scope)
+
+    /** True when this build can play recorded audiobooks at all. */
+    val canPlayAudiobooks: Boolean get() = audioDecoders != null
+
     private val openLock = Mutex()
     private val previewLock = Mutex()
 
@@ -113,6 +142,9 @@ class Soundbound(
 
     /** Renders books to MP3 or WAV. Needs no network and no permission beyond a folder to write to. */
     val exporter = AudiobookExporter(voiceRegistry)
+
+    /** Brings in audiobooks that already exist as audio. */
+    val audiobookImporter = AudiobookImporter(library, paths.coversDirectory)
 
     init {
         refreshVoices()
@@ -239,6 +271,8 @@ class Soundbound(
         val entry = library.entry(id)
             ?: return@withLock Result.failure(IllegalArgumentException("That book is no longer in your library."))
 
+        if (entry.book.format.isAudio) return@withLock openAudiobook(entry)
+
         val handle = fileHandleFor(entry)
             ?: return@withLock Result.failure(
                 IllegalStateException("\"${entry.book.metadata.title}\" could not be found where it was imported from."),
@@ -256,6 +290,7 @@ class Soundbound(
         library.markOpened(id)
         settings.update { it.copy(lastOpenedBookId = id.value) }
 
+        playback.use(PlaybackMode.READ_ALOUD)
         reader.open(id, source, entry.position, entry.highlights)
         _state.value = _state.value.copy(activeBookId = id)
 
@@ -268,10 +303,44 @@ class Soundbound(
         Result.success(Unit)
     }
 
+    /**
+     * Opens a recorded audiobook.
+     *
+     * Far less to do than a text book: there is nothing to parse and nothing to lay out, only a
+     * timeline that was worked out when the book was imported. Playback is left paused, for the
+     * same reason as a text book — opening one should never start it talking.
+     */
+    private suspend fun openAudiobook(entry: LibraryEntry): Result<Unit> {
+        val audiobook = entry.book.audiobook
+            ?: return Result.failure(IllegalStateException("This audiobook's files are missing."))
+        if (audioDecoders == null) {
+            return Result.failure(
+                IllegalStateException("This version of Soundbound cannot play recorded audiobooks."),
+            )
+        }
+
+        reader.closeBook()
+        library.markOpened(entry.book.id)
+        settings.update { it.copy(lastOpenedBookId = entry.book.id.value) }
+
+        playback.use(PlaybackMode.AUDIOBOOK)
+        audiobookPlayer.open(audiobook, entry.position.audioMillis)
+        audiobookPlayer.setSpeed(entry.speechRate ?: settings.current.speech.rate)
+        _state.value = _state.value.copy(activeBookId = entry.book.id)
+        return Result.success(Unit)
+    }
+
     suspend fun closeBook() {
         player.stop()
+        audiobookPlayer.stop()
         reader.closeBook()
         _state.value = _state.value.copy(activeBookId = null)
+    }
+
+    /** Saves where an audiobook has reached. */
+    private fun onAudioPositionChanged(millis: Long) {
+        val id = _state.value.activeBookId ?: return
+        library.savePosition(id, ReadingPosition.atAudio(millis, System.currentTimeMillis()))
     }
 
     /** Re-reads the speech settings, including any per-book overrides. */
@@ -290,6 +359,36 @@ class Soundbound(
     }
 
     // ---------------------------------------------------------------- importing
+
+    /**
+     * Imports a set of audio files as one audiobook.
+     *
+     * Separate from [import] because the unit differs: picking four EPUBs means four books,
+     * whereas picking forty MP3s means one. The person has just said which by how they picked.
+     */
+    suspend fun importAudiobook(
+        handles: List<BookFileHandle>,
+        folderName: String? = null,
+    ): ImportResult {
+        _state.value = _state.value.copy(isImporting = true, message = null)
+        val result = withContext(Dispatchers.IO) {
+            audiobookImporter.import(handles, folderName)
+        }
+        _state.value = _state.value.copy(
+            isImporting = false,
+            importedThisRun = if (result is ImportResult.Added) 1 else 0,
+            message = when (result) {
+                is ImportResult.Added ->
+                    "Added \"${result.entry.book.metadata.title}\"."
+
+                is ImportResult.AlreadyPresent ->
+                    "\"${result.entry.book.metadata.title}\" is already in your library."
+
+                is ImportResult.Failed -> result.reason
+            },
+        )
+        return result
+    }
 
     suspend fun import(handles: List<BookFileHandle>): List<ImportResult> {
         _state.value = _state.value.copy(isImporting = true, message = null)
@@ -465,4 +564,18 @@ class LocalFileHandle(private val file: File) : BookFileHandle {
     override val sizeBytes: Long get() = file.length()
     override fun openSource(): Source = file.inputStream().source()
     override fun localPath(): String = file.absolutePath
+}
+
+/**
+ * Stands in where a build has no audio decoder.
+ *
+ * Refusing at the point of use, with a message, rather than leaving the field null and making
+ * every caller check: a book that is offered and then silently does nothing is the worse failure
+ * of the two.
+ */
+private object NoAudioDecoders : AudioDecoderFactory {
+    override fun canDecode(uri: String) = false
+
+    override fun open(uri: String): AudioDecoder =
+        throw AudioDecodeException("This version of Soundbound cannot play recorded audiobooks.")
 }
