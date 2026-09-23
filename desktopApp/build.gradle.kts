@@ -28,6 +28,8 @@ dependencies {
 
     // The JVM build of ONNX Runtime, exposing the same ai.onnxruntime API :core compiles against.
     implementation(libs.onnxruntime)
+    // jump3r decodes MP3 here as well as encoding it; :core keeps it off its own API.
+    implementation(libs.jump3r)
 
     // Used only to bind libespeak-ng when the user has installed it.
     implementation(libs.jna)
