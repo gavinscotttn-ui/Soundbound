@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.soundbound.ui.theme.Elevation
+import app.soundbound.ui.theme.LocalHaptics
 import app.soundbound.ui.theme.Motion
 import app.soundbound.ui.theme.SoundboundShapes
 import app.soundbound.ui.theme.SoundboundType
@@ -111,6 +112,7 @@ fun PlayPauseButton(
     enabled: Boolean = true,
     diameter: Dp = 68.dp,
 ) {
+    val haptics = LocalHaptics.current
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -133,7 +135,10 @@ fun PlayPauseButton(
                     indication = androidx.compose.material3.ripple(),
                     enabled = enabled,
                     role = Role.Button,
-                    onClick = onToggle,
+                    onClick = {
+                        haptics.tick()
+                        onToggle()
+                    },
                 ),
             contentAlignment = Alignment.Center,
         ) {

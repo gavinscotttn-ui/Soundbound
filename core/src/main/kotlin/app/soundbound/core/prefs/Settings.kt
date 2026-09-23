@@ -199,6 +199,13 @@ data class Settings(
     val reader: ReaderSettings = ReaderSettings(),
     val library: LibrarySettings = LibrarySettings(),
     val lastOpenedBookId: String? = null,
+    /**
+     * A short vibration on the actions worth confirming by touch.
+     *
+     * On by default, and offered as a setting because it is exactly the sort of thing people
+     * feel strongly about in both directions — and because some find it unbearable.
+     */
+    val haptics: Boolean = true,
     /** Set once the user has been shown the welcome flow. */
     val hasCompletedSetup: Boolean = false,
 ) {

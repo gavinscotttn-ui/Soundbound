@@ -61,6 +61,7 @@ import app.soundbound.ui.components.SoundboundIcons
 import app.soundbound.ui.components.decodeImageBytes
 import app.soundbound.ui.theme.LocalReaderPalette
 import app.soundbound.ui.theme.SoundboundShapes
+import app.soundbound.ui.theme.LocalHaptics
 import app.soundbound.ui.theme.Spacing
 import app.soundbound.ui.theme.platformReadingFont
 import kotlinx.coroutines.Dispatchers
@@ -616,6 +617,7 @@ private fun ReaderBottomBar(
     actions: ReaderActions,
     bottomPadding: androidx.compose.ui.unit.Dp,
 ) {
+    val haptics = LocalHaptics.current
     Surface(
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
         modifier = Modifier.fillMaxWidth(),
@@ -631,7 +633,14 @@ private fun ReaderBottomBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 SoundboundIconButton(SoundboundIcons.Typography, "Appearance", actions.onShowAppearance)
-                SoundboundIconButton(SoundboundIcons.Bookmark, "Add a bookmark", actions.onAddBookmark)
+                SoundboundIconButton(
+                    SoundboundIcons.Bookmark,
+                    "Add a bookmark",
+                    onClick = {
+                        haptics.confirm()
+                        actions.onAddBookmark()
+                    },
+                )
                 SoundboundIconButton(
                     icon = if (state.isSpeaking) SoundboundIcons.Pause else SoundboundIcons.Play,
                     contentDescription = if (state.isSpeaking) "Pause reading aloud" else "Read aloud",

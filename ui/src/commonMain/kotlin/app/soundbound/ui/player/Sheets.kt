@@ -49,6 +49,7 @@ import app.soundbound.ui.components.SoundboundIconButton
 import app.soundbound.ui.components.SoundboundIcons
 import app.soundbound.ui.components.SwitchRow
 import app.soundbound.ui.theme.LocalAccents
+import app.soundbound.ui.theme.LocalHaptics
 import app.soundbound.ui.theme.SoundboundShapes
 import app.soundbound.ui.theme.SoundboundType
 import app.soundbound.ui.theme.Spacing
@@ -257,6 +258,8 @@ fun SleepTimerSheet(
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val haptics = LocalHaptics.current
+
     Column(modifier = modifier.fillMaxWidth()) {
         SheetHeader(
             title = "Sleep timer",
@@ -275,7 +278,10 @@ fun SleepTimerSheet(
                 SoundboundChip(
                     label = "$minutes m",
                     selected = false,
-                    onClick = { onSet(minutes * 60_000L) },
+                    onClick = {
+                        haptics.confirm()
+                        onSet(minutes * 60_000L)
+                    },
                     modifier = Modifier.weight(1f),
                 )
             }

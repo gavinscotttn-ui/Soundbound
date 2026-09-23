@@ -97,11 +97,14 @@ fun SoundboundTheme(
         )
     }
 
+    val haptics = rememberHaptics(settings.haptics)
+
     CompositionLocalProvider(
         LocalIsDarkTheme provides dark,
         LocalReaderPalette provides readerPalette,
         LocalSettings provides settings,
         LocalAccents provides accents,
+        LocalHaptics provides haptics,
     ) {
         MaterialTheme(
             colorScheme = scheme,

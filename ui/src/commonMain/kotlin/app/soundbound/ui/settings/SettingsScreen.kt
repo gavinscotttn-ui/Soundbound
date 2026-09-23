@@ -259,6 +259,14 @@ fun SettingsScreen(
             )
         }
         item {
+            SwitchRow(
+                title = "Touch feedback",
+                subtitle = "A short vibration when a chapter changes, or playback starts and stops",
+                checked = settings.haptics,
+                onCheckedChange = { actions.onSettingsChange(settings.copy(haptics = it)) },
+            )
+        }
+        item {
             NavigationRow(
                 title = "Reading appearance",
                 subtitle = "Type, spacing, margins and page colour",

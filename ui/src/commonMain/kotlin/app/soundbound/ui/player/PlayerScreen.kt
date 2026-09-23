@@ -50,6 +50,7 @@ import app.soundbound.ui.components.TimelineScrubber
 import app.soundbound.ui.components.WaveformTrack
 import app.soundbound.ui.components.generatedCoverBrush
 import app.soundbound.ui.theme.LocalAccents
+import app.soundbound.ui.theme.LocalHaptics
 import app.soundbound.ui.theme.Motion
 import app.soundbound.ui.theme.SoundboundShapes
 import app.soundbound.ui.theme.SoundboundType
@@ -340,10 +341,15 @@ private fun PlayerProgress(state: PlayerScreenState) {
  */
 @Composable
 private fun AudiobookProgress(state: PlayerScreenState, actions: PlayerActions) {
+    val haptics = LocalHaptics.current
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.large)) {
         TimelineScrubber(
             fraction = state.snapshot.fraction.toFloat(),
-            onSeek = actions.onSeekToFraction,
+            onSeek = {
+                // A tick where the thumb lands, so a scrub done without looking still confirms.
+                haptics.tick()
+                actions.onSeekToFraction(it)
+            },
             enabled = state.snapshot.durationMillis > 0,
         )
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -375,6 +381,7 @@ private fun PlayerTransport(
     actions: PlayerActions,
     isPlaying: Boolean,
 ) {
+    val haptics = LocalHaptics.current
     // A recording needs no voice, so the transport is never disabled for want of one.
     val enabled = state.isAudiobook || state.playback.voice != null
 
@@ -389,6 +396,7 @@ private fun PlayerTransport(
             icon = SoundboundIcons.PreviousParagraph,
             contentDescription = if (state.isAudiobook) "Previous chapter" else "Back a paragraph",
             onClick = {
+                haptics.tick()
                 if (state.isAudiobook) actions.onSkipChapter(-1) else actions.onSkipParagraph(-1)
             },
             enabled = enabled,
@@ -400,7 +408,10 @@ private fun PlayerTransport(
             // The two books step by different units on purpose: a sentence is what a synthesised
             // book has, and thirty seconds is what a recording has.
             contentDescription = if (state.isAudiobook) "Back 30 seconds" else "Back a sentence",
-            onClick = { actions.onSkipSentence(-1) },
+            onClick = {
+                haptics.tick()
+                actions.onSkipSentence(-1)
+            },
             enabled = enabled,
             size = 52.dp,
             iconSize = 26.dp,
@@ -414,7 +425,10 @@ private fun PlayerTransport(
         SoundboundIconButton(
             icon = SoundboundIcons.NextSentence,
             contentDescription = if (state.isAudiobook) "On 30 seconds" else "On a sentence",
-            onClick = { actions.onSkipSentence(1) },
+            onClick = {
+                haptics.tick()
+                actions.onSkipSentence(1)
+            },
             enabled = enabled,
             size = 52.dp,
             iconSize = 26.dp,
@@ -423,6 +437,7 @@ private fun PlayerTransport(
             icon = SoundboundIcons.NextParagraph,
             contentDescription = if (state.isAudiobook) "Next chapter" else "On a paragraph",
             onClick = {
+                haptics.tick()
                 if (state.isAudiobook) actions.onSkipChapter(1) else actions.onSkipParagraph(1)
             },
             enabled = enabled,
@@ -532,6 +547,7 @@ fun MiniPlayer(
 ) {
     val accents = LocalAccents.current
     val isPlaying = state.snapshot.isPlaying
+    val haptics = LocalHaptics.current
     val book = state.book ?: return
 
     val elevation by animateFloatAsState(
@@ -588,7 +604,10 @@ fun MiniPlayer(
                 SoundboundIconButton(
                     icon = if (isPlaying) SoundboundIcons.Pause else SoundboundIcons.Play,
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    onClick = onTogglePlayPause,
+                    onClick = {
+                        haptics.tick()
+                        onTogglePlayPause()
+                    },
                     size = 40.dp,
                     iconSize = 20.dp,
                     tint = MaterialTheme.colorScheme.onPrimary,
