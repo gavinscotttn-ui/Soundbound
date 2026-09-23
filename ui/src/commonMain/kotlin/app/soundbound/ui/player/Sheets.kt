@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.soundbound.core.audiobook.AudioChapter
 import app.soundbound.core.export.ExportFormat
 import app.soundbound.core.export.ExportGrouping
 import app.soundbound.core.export.ExportProgress
@@ -633,4 +634,100 @@ private fun ExportOptions(
         )
     }
     Spacer(Modifier.height(Spacing.large))
+}
+
+/**
+ * The chapters of a recorded audiobook.
+ *
+ * A separate sheet from [ContentsSheet] because the two lists are not the same kind of thing. A
+ * text book's contents come from its own navigation document and point at chapters; an
+ * audiobook's are points in time, and the time is the useful part — it is how a listener judges
+ * whether to start one now.
+ *
+ * This is also the payoff for parsing the chapter table out of an M4B rather than leaving it to
+ * the platform. Without this list, a nine-hour recording in a single file has no structure at all.
+ */
+@Composable
+fun AudiobookContentsSheet(
+    chapters: List<AudioChapter>,
+    positionMillis: Long,
+    onSelect: (AudioChapter) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accents = LocalAccents.current
+    val haptics = LocalHaptics.current
+    val current = remember(chapters, positionMillis) {
+        chapters.lastOrNull { positionMillis >= it.startMillis } ?: chapters.firstOrNull()
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        SheetHeader(
+            title = "Chapters",
+            subtitle = if (chapters.isEmpty()) null else "${chapters.size} chapters",
+            onClose = onClose,
+        )
+        HairlineDivider(inset = 0.dp)
+
+        if (chapters.isEmpty()) {
+            EmptyState(
+                icon = SoundboundIcons.Contents,
+                title = "No chapters",
+                message = "These files carry no chapter list, so the book is one long recording.",
+            )
+            return@Column
+        }
+
+        LazyColumn(modifier = Modifier.heightIn(max = 520.dp)) {
+            items(items = chapters, key = { it.index }) { chapter ->
+                val isCurrent = chapter.index == current?.index
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            haptics.tick()
+                            onSelect(chapter)
+                        }
+                        .padding(horizontal = Spacing.gutter, vertical = Spacing.medium),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (isCurrent) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(SoundboundShapes.pill)
+                                .background(accents.speaking),
+                        )
+                        Spacer(Modifier.width(Spacing.small))
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = chapter.title,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isCurrent) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            // How long it runs, which is what decides whether to start it now.
+                            text = formatDuration(chapter.durationMillis),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.width(Spacing.small))
+                    Text(
+                        // Where it begins in the book, so a listener can find it again.
+                        text = formatDuration(chapter.startMillis),
+                        style = SoundboundType.monoNumerals,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
 }

@@ -195,6 +195,11 @@ class AppController(
         onPreviousChapter = { scope.launch { engine.reader.previousChapter() } },
     )
 
+    /** Jumps to a chapter of a recorded audiobook. */
+    fun goToAudioChapter(chapter: app.soundbound.core.audiobook.AudioChapter) {
+        scope.launch { engine.audiobookPlayer.seekToChapter(chapter.index) }
+    }
+
     fun goToTocEntry(entry: TocEntry) {
         sheets.dismiss()
         scope.launch { engine.reader.goToTocEntry(entry) }

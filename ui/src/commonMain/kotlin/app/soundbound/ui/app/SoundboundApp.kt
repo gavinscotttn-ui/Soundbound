@@ -43,6 +43,7 @@ import app.soundbound.ui.components.SoundboundIcons
 import app.soundbound.ui.library.LibraryScreen
 import app.soundbound.ui.notebook.NotebookScreen
 import app.soundbound.ui.player.BookmarksSheet
+import app.soundbound.ui.player.AudiobookContentsSheet
 import app.soundbound.ui.player.ContentsSheet
 import app.soundbound.ui.player.ExportSheet
 import app.soundbound.ui.player.MiniPlayer
@@ -222,12 +223,33 @@ fun SoundboundApp(
                 shape = app.soundbound.ui.theme.SoundboundShapes.sheet,
             ) {
                 when (sheets.open) {
-                    Sheet.CONTENTS -> ContentsSheet(
-                        toc = readerState.toc,
-                        currentChapter = readerState.chapter,
-                        onSelect = { entry -> controller.goToTocEntry(entry) },
-                        onClose = { sheets.dismiss() },
-                    )
+                    Sheet.CONTENTS -> {
+                        // An audiobook's contents are points in time, not chapters of text, so
+                        // the two lists are shown by different sheets. This is the payoff for
+                        // parsing an M4B's chapter table rather than leaving it to the platform.
+                        val audiobook = libraryEntries
+                            .firstOrNull { it.book.id == appState.activeBookId }
+                            ?.book?.audiobook
+
+                        if (audiobook != null) {
+                            AudiobookContentsSheet(
+                                chapters = audiobook.chapters,
+                                positionMillis = snapshot.positionMillis,
+                                onSelect = { chapter ->
+                                    controller.goToAudioChapter(chapter)
+                                    sheets.dismiss()
+                                },
+                                onClose = { sheets.dismiss() },
+                            )
+                        } else {
+                            ContentsSheet(
+                                toc = readerState.toc,
+                                currentChapter = readerState.chapter,
+                                onSelect = { entry -> controller.goToTocEntry(entry) },
+                                onClose = { sheets.dismiss() },
+                            )
+                        }
+                    }
 
                     Sheet.READER_APPEARANCE -> AppearanceSheet(
                         typography = settings.typography,
