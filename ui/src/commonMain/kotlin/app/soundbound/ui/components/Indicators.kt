@@ -291,3 +291,43 @@ fun DownloadRing(
 
 /** Clamps a value into 0..1 without the noise of two coerce calls at every call site. */
 internal fun Float.asFraction(): Float = min(1f, max(0f, this))
+
+/**
+ * A draggable timeline, for a book that has one.
+ *
+ * The detail that decides whether a scrubber feels right is what happens *during* a drag. The
+ * position keeps arriving from the player several times a second, and a scrubber that simply
+ * shows it will fight the thumb: the listener drags forward, playback reports where it still is,
+ * and the thumb snaps back. So while a drag is in progress the finger wins outright, and the
+ * incoming position is ignored until it ends.
+ */
+@Composable
+fun TimelineScrubber(
+    fraction: Float,
+    onSeek: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val accents = LocalAccents.current
+    var dragging by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    var dragged by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+
+    androidx.compose.material3.Slider(
+        value = if (dragging) dragged else fraction.coerceIn(0f, 1f),
+        onValueChange = {
+            dragging = true
+            dragged = it
+        },
+        onValueChangeFinished = {
+            dragging = false
+            onSeek(dragged)
+        },
+        enabled = enabled,
+        colors = androidx.compose.material3.SliderDefaults.colors(
+            thumbColor = accents.speaking,
+            activeTrackColor = accents.speaking,
+            inactiveTrackColor = accents.progressTrack,
+        ),
+        modifier = modifier.fillMaxWidth(),
+    )
+}

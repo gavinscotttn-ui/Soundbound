@@ -78,6 +78,10 @@ fun SoundboundApp(
     val readerState by engine.reader.state.collectAsState()
     val playbackState by engine.player.state.collectAsState()
 
+    // The unified view of whatever is playing. Collected rather than read, so that the player
+    // and the mini player follow it as it advances.
+    val snapshot by engine.playback.snapshot.collectAsState()
+
     val navigator = rememberNavigator()
     val sheets = rememberSheetController()
     val ui = rememberAppUiState()
@@ -122,6 +126,7 @@ fun SoundboundApp(
                     BottomChrome(
                         navigator = navigator,
                         playbackState = playbackState,
+                        snapshot = snapshot,
                         libraryEntries = libraryEntries,
                         activeBookId = appState.activeBookId,
                         chapterTitle = readerState.content?.title,
@@ -177,7 +182,13 @@ fun SoundboundApp(
                     )
 
                     Destination.Player -> PlayerScreen(
-                        state = controller.playerState(playbackState, readerState, appState, libraryEntries),
+                        state = controller.playerState(
+                            playbackState,
+                            snapshot,
+                            readerState,
+                            appState,
+                            libraryEntries,
+                        ),
                         actions = controller.playerActions(),
                         contentPadding = padding,
                     )
@@ -240,8 +251,9 @@ fun SoundboundApp(
 
                     Sheet.SLEEP_TIMER -> SleepTimerSheet(
                         activeMillisRemaining = playbackState.sleepTimerMillisRemaining,
-                        onSet = { engine.player.setSleepTimer(it) },
-                        onExtend = { engine.player.extendSleepTimer(it) },
+                        // The sleep timer belongs to whichever player is in charge.
+                        onSet = { engine.playback.setSleepTimer(it) },
+                        onExtend = { engine.playback.extendSleepTimer(it) },
                         onClose = { sheets.dismiss() },
                     )
 
@@ -304,6 +316,7 @@ fun SoundboundApp(
 private fun BottomChrome(
     navigator: Navigator,
     playbackState: app.soundbound.core.player.ReadAloudState,
+    snapshot: app.soundbound.core.player.PlaybackSnapshot,
     libraryEntries: List<app.soundbound.core.library.LibraryEntry>,
     activeBookId: BookId?,
     chapterTitle: String?,
@@ -311,7 +324,7 @@ private fun BottomChrome(
     onTogglePlayPause: () -> Unit,
 ) {
     val book = libraryEntries.firstOrNull { it.book.id == activeBookId }?.book
-    val showMiniPlayer = book != null && playbackState.status != PlaybackStatus.IDLE
+    val showMiniPlayer = book != null && snapshot.status != PlaybackStatus.IDLE
 
     Surface(color = MaterialTheme.colorScheme.surface) {
         androidx.compose.foundation.layout.Column {
@@ -319,8 +332,9 @@ private fun BottomChrome(
                 MiniPlayer(
                     state = app.soundbound.ui.player.PlayerScreenState(
                         playback = playbackState,
+                        snapshot = snapshot,
                         book = book,
-                        chapterTitle = chapterTitle,
+                        chapterTitle = snapshot.chapterTitle ?: chapterTitle,
                         voiceName = playbackState.voice?.displayName,
                     ),
                     onExpand = onExpandPlayer,

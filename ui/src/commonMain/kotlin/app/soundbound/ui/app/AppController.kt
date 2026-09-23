@@ -7,6 +7,7 @@ import app.soundbound.core.model.Bookmark
 import app.soundbound.core.model.ChapterIndex
 import app.soundbound.core.model.BookId
 import app.soundbound.core.model.TocEntry
+import app.soundbound.core.player.PlaybackSnapshot
 import app.soundbound.core.player.PlaybackStatus
 import app.soundbound.core.player.ReadAloudState
 import app.soundbound.core.prefs.Settings
@@ -88,6 +89,7 @@ class AppController(
         onTagChange = { ui.activeTag = it },
         onLayoutChange = { ui.layout = it },
         onImport = ::importBooks,
+        onImportAudiobook = if (engine.canPlayAudiobooks) ::importAudiobook else null,
         onToggleFavourite = { id, favourite -> engine.library.setFavourite(id, favourite) },
     )
 
@@ -96,6 +98,22 @@ class AppController(
             val handles = bridge.pickBooks()
             if (handles.isEmpty()) return@launch
             engine.import(handles)
+        }
+    }
+
+    /**
+     * Adds an audiobook.
+     *
+     * Everything picked becomes one book, so the folder's name is offered as a title for the
+     * common case of a ripped set whose files carry no album tag.
+     */
+    fun importAudiobook() {
+        scope.launch {
+            val handles = bridge.pickAudiobookFiles()
+            if (handles.isEmpty()) return@launch
+            val folder = handles.firstOrNull()?.localPath()
+                ?.let { java.io.File(it).parentFile?.name }
+            engine.importAudiobook(handles, folder)
         }
     }
 
@@ -216,24 +234,28 @@ class AppController(
 
     fun playerState(
         playback: ReadAloudState,
+        snapshot: PlaybackSnapshot,
         reader: ReaderState,
         app: SoundboundState,
         entries: List<LibraryEntry>,
     ): PlayerScreenState = PlayerScreenState(
         playback = playback,
+        snapshot = snapshot,
         book = entries.firstOrNull { it.book.id == app.activeBookId }?.book,
-        chapterTitle = playback.chapterTitle ?: reader.content?.title,
+        chapterTitle = snapshot.chapterTitle ?: reader.content?.title,
         voiceName = playback.voice?.displayName,
         isVoiceInstalled = app.voices.isNotEmpty(),
-        sleepTimerLabel = playback.sleepTimerMillisRemaining?.let(::formatDuration),
+        sleepTimerLabel = snapshot.sleepTimerMillisRemaining?.let(::formatDuration),
     )
 
     fun playerActions() = PlayerActions(
         onClose = { navigator.back() },
         onTogglePlayPause = ::togglePlayPause,
-        onSkipSentence = { delta -> scope.launch { engine.player.skipSentences(delta) } },
+        // Through the unified transport: a sentence for a synthesised book, thirty seconds for
+        // a recording, and the branch is made once, in Playback, rather than here.
+        onSkipSentence = { delta -> scope.launch { engine.playback.skip(delta) } },
         onSkipParagraph = { delta -> scope.launch { engine.player.skipParagraph(delta) } },
-        onSkipChapter = { delta -> scope.launch { engine.player.skipChapter(delta) } },
+        onSkipChapter = { delta -> scope.launch { engine.playback.skipChapter(delta) } },
         onShowSpeed = { sheets.show(Sheet.SPEED) },
         onShowSleepTimer = { sheets.show(Sheet.SLEEP_TIMER) },
         onShowVoicePicker = { sheets.show(Sheet.VOICE_PICKER) },
@@ -244,16 +266,20 @@ class AppController(
             if (id != null) navigator.replace(Destination.Reader(id)) else navigator.back()
         },
         onGetVoices = { navigator.selectTopLevel(TopLevel.VOICES) },
+        onSeekToFraction = { fraction ->
+            scope.launch { engine.playback.seekToFraction(fraction.toDouble()) }
+        },
     )
 
     fun togglePlayPause() {
-        scope.launch { engine.player.togglePlayPause() }
+        scope.launch { engine.playback.togglePlayPause() }
     }
 
     fun setRate(rate: Float) {
         scope.launch {
             engine.settings.updateSpeech { it.copy(rate = rate) }
-            engine.player.setParams(engine.player.state.value.params.copy(rate = rate).coerced())
+            // Both players take a speed; the transport gives it to whichever is in charge.
+            engine.playback.setSpeed(rate)
         }
     }
 

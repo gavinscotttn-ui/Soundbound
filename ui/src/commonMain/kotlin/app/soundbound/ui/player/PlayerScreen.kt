@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.soundbound.core.model.Book
+import app.soundbound.core.player.PlaybackSnapshot
 import app.soundbound.core.player.PlaybackStatus
 import app.soundbound.core.player.ReadAloudState
 import app.soundbound.ui.components.BookCover
@@ -45,6 +46,7 @@ import app.soundbound.ui.components.PlayPauseButton
 import app.soundbound.ui.components.SlimProgressBar
 import app.soundbound.ui.components.SoundboundIconButton
 import app.soundbound.ui.components.SoundboundIcons
+import app.soundbound.ui.components.TimelineScrubber
 import app.soundbound.ui.components.WaveformTrack
 import app.soundbound.ui.components.generatedCoverBrush
 import app.soundbound.ui.theme.LocalAccents
@@ -56,12 +58,20 @@ import app.soundbound.ui.theme.Spacing
 /** What the player is showing. */
 data class PlayerScreenState(
     val playback: ReadAloudState,
+    /**
+     * The unified view of whatever is playing. The player screen is built from this; [playback]
+     * is only consulted for the things that exist solely when Soundbound is doing the reading —
+     * the sentence, the voice, the sentence counter.
+     */
+    val snapshot: PlaybackSnapshot,
     val book: Book?,
     val chapterTitle: String?,
     val voiceName: String?,
     val isVoiceInstalled: Boolean = true,
     val sleepTimerLabel: String? = null,
-)
+) {
+    val isAudiobook: Boolean get() = snapshot.isAudiobook
+}
 
 /** What the player can ask for. */
 data class PlayerActions(
@@ -77,6 +87,8 @@ data class PlayerActions(
     val onShowExport: () -> Unit,
     val onOpenReader: () -> Unit,
     val onGetVoices: () -> Unit,
+    /** Drag the timeline, for a book that has one. */
+    val onSeekToFraction: (Float) -> Unit = {},
 )
 
 /**
@@ -94,7 +106,7 @@ fun PlayerScreen(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
-    val isPlaying = state.playback.status == PlaybackStatus.PLAYING
+    val isPlaying = state.snapshot.isPlaying
 
     Box(
         modifier = modifier
@@ -176,29 +188,47 @@ fun PlayerScreen(
 
                 Spacer(Modifier.height(Spacing.large))
 
-                SpokenSentence(
-                    sentence = state.playback.currentSentence,
-                    isPlaying = isPlaying,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-
-                if (!state.isVoiceInstalled || state.playback.voice == null) {
-                    Spacer(Modifier.height(Spacing.default))
-                    InlineMessage(
-                        message = "No voice is installed yet. Soundbound needs one to read aloud.",
-                        icon = SoundboundIcons.Voices,
-                        actionLabel = "Get voices",
-                        onAction = actions.onGetVoices,
+                if (state.isAudiobook) {
+                    // A recording has no text to show, so the space goes to what it does have:
+                    // how far in it is, and how much is left.
+                    Spacer(Modifier.weight(1f, fill = false))
+                    state.snapshot.remainingLabel()?.let { remaining ->
+                        Text(
+                            text = remaining,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                } else {
+                    SpokenSentence(
+                        sentence = state.playback.currentSentence,
+                        isPlaying = isPlaying,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
+
+                    if (!state.isVoiceInstalled || state.playback.voice == null) {
+                        Spacer(Modifier.height(Spacing.default))
+                        InlineMessage(
+                            message = "No voice is installed yet. Soundbound needs one to read aloud.",
+                            icon = SoundboundIcons.Voices,
+                            actionLabel = "Get voices",
+                            onAction = actions.onGetVoices,
+                        )
+                    }
                 }
 
-                state.playback.errorMessage?.let { error ->
+                state.snapshot.errorMessage?.let { error ->
                     Spacer(Modifier.height(Spacing.medium))
                     InlineMessage(message = error, isError = true, icon = SoundboundIcons.Warning)
                 }
             }
 
-            PlayerProgress(state = state)
+            if (state.isAudiobook) {
+                AudiobookProgress(state = state, actions = actions)
+            } else {
+                PlayerProgress(state = state)
+            }
             PlayerTransport(state = state, actions = actions, isPlaying = isPlaying)
             PlayerFooter(state = state, actions = actions)
         }
@@ -301,6 +331,38 @@ private fun PlayerProgress(state: PlayerScreenState) {
     }
 }
 
+/**
+ * The timeline of a recorded audiobook: a draggable scrubber with the time either side of it.
+ *
+ * Deliberately unlike the synthesised book's progress display, which counts sentences because a
+ * synthesised book has no fixed duration — change the speed or the voice and every timestamp
+ * moves. A recording does have one, and hiding it would be wilful.
+ */
+@Composable
+private fun AudiobookProgress(state: PlayerScreenState, actions: PlayerActions) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.large)) {
+        TimelineScrubber(
+            fraction = state.snapshot.fraction.toFloat(),
+            onSeek = actions.onSeekToFraction,
+            enabled = state.snapshot.durationMillis > 0,
+        )
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = formatDuration(state.snapshot.positionMillis),
+                style = SoundboundType.monoNumerals,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            Text(
+                // Negative, the way every player shows what is left rather than what is past.
+                text = "-" + formatDuration(state.snapshot.remainingMillis),
+                style = SoundboundType.monoNumerals,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
 private fun sentenceCounter(playback: ReadAloudState): String {
     if (playback.unitCount <= 0) return "—"
     val current = (playback.unitIndex + 1).coerceIn(1, playback.unitCount)
@@ -313,7 +375,9 @@ private fun PlayerTransport(
     actions: PlayerActions,
     isPlaying: Boolean,
 ) {
-    val enabled = state.playback.voice != null
+    // A recording needs no voice, so the transport is never disabled for want of one.
+    val enabled = state.isAudiobook || state.playback.voice != null
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,15 +387,19 @@ private fun PlayerTransport(
     ) {
         SoundboundIconButton(
             icon = SoundboundIcons.PreviousParagraph,
-            contentDescription = "Back a paragraph",
-            onClick = { actions.onSkipParagraph(-1) },
+            contentDescription = if (state.isAudiobook) "Previous chapter" else "Back a paragraph",
+            onClick = {
+                if (state.isAudiobook) actions.onSkipChapter(-1) else actions.onSkipParagraph(-1)
+            },
             enabled = enabled,
             size = 48.dp,
             iconSize = 24.dp,
         )
         SoundboundIconButton(
             icon = SoundboundIcons.PreviousSentence,
-            contentDescription = "Back a sentence",
+            // The two books step by different units on purpose: a sentence is what a synthesised
+            // book has, and thirty seconds is what a recording has.
+            contentDescription = if (state.isAudiobook) "Back 30 seconds" else "Back a sentence",
             onClick = { actions.onSkipSentence(-1) },
             enabled = enabled,
             size = 52.dp,
@@ -345,7 +413,7 @@ private fun PlayerTransport(
         )
         SoundboundIconButton(
             icon = SoundboundIcons.NextSentence,
-            contentDescription = "On a sentence",
+            contentDescription = if (state.isAudiobook) "On 30 seconds" else "On a sentence",
             onClick = { actions.onSkipSentence(1) },
             enabled = enabled,
             size = 52.dp,
@@ -353,8 +421,10 @@ private fun PlayerTransport(
         )
         SoundboundIconButton(
             icon = SoundboundIcons.NextParagraph,
-            contentDescription = "On a paragraph",
-            onClick = { actions.onSkipParagraph(1) },
+            contentDescription = if (state.isAudiobook) "Next chapter" else "On a paragraph",
+            onClick = {
+                if (state.isAudiobook) actions.onSkipChapter(1) else actions.onSkipParagraph(1)
+            },
             enabled = enabled,
             size = 48.dp,
             iconSize = 24.dp,
@@ -373,7 +443,7 @@ private fun PlayerFooter(state: PlayerScreenState, actions: PlayerActions) {
     ) {
         FooterAction(
             icon = SoundboundIcons.Speed,
-            label = "${trimRate(state.playback.params.rate)}×",
+            label = "${trimRate(state.snapshot.speed)}×",
             contentDescription = "Reading speed",
             onClick = actions.onShowSpeed,
         )
@@ -461,7 +531,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) {
     val accents = LocalAccents.current
-    val isPlaying = state.playback.status == PlaybackStatus.PLAYING
+    val isPlaying = state.snapshot.isPlaying
     val book = state.book ?: return
 
     val elevation by animateFloatAsState(
@@ -477,7 +547,7 @@ fun MiniPlayer(
     ) {
         Column {
             SlimProgressBar(
-                progress = state.playback.progress.fraction.toFloat(),
+                progress = state.snapshot.fraction.toFloat(),
                 height = 2.dp,
                 colour = accents.speaking,
                 trackColour = Color.Transparent,
@@ -504,7 +574,8 @@ fun MiniPlayer(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = state.playback.currentSentence.ifBlank {
+                        // A recording has no sentence, so its chapter is what shows.
+                        text = state.snapshot.currentSentence.ifBlank {
                             state.chapterTitle ?: "Ready"
                         },
                         style = MaterialTheme.typography.bodySmall,

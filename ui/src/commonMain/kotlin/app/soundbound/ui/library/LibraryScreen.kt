@@ -26,6 +26,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
@@ -89,6 +91,8 @@ data class LibraryActions(
     val onTagChange: (String?) -> Unit,
     val onLayoutChange: (LibraryLayout) -> Unit,
     val onImport: () -> Unit,
+    /** Adds recorded audio as one audiobook. Absent on a build that cannot play audio. */
+    val onImportAudiobook: (() -> Unit)? = null,
     val onToggleFavourite: (BookId, Boolean) -> Unit,
 )
 
@@ -219,11 +223,7 @@ private fun LibraryHeader(
                 onClick = onToggleFilters,
                 tint = if (filtersExpanded) MaterialTheme.colorScheme.primary else null,
             )
-            SoundboundIconButton(
-                icon = SoundboundIcons.Add,
-                contentDescription = "Add books",
-                onClick = actions.onImport,
-            )
+            AddButton(actions = actions)
         }
 
         SearchField(
@@ -231,6 +231,51 @@ private fun LibraryHeader(
             onQueryChange = actions.onQueryChange,
             modifier = Modifier.padding(horizontal = Spacing.gutter, vertical = Spacing.medium),
         )
+    }
+}
+
+/**
+ * The add button.
+ *
+ * One button with a menu when audiobooks can be played, and a plain button when they cannot —
+ * rather than a second button that is present but does nothing, or one that offers a choice with
+ * only one thing in it.
+ */
+@Composable
+private fun AddButton(actions: LibraryActions) {
+    val addAudiobook = actions.onImportAudiobook
+    if (addAudiobook == null) {
+        SoundboundIconButton(
+            icon = SoundboundIcons.Add,
+            contentDescription = "Add books",
+            onClick = actions.onImport,
+        )
+        return
+    }
+
+    var open by remember { mutableStateOf(false) }
+    Box {
+        SoundboundIconButton(
+            icon = SoundboundIcons.Add,
+            contentDescription = "Add to your library",
+            onClick = { open = true },
+        )
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(
+                text = { Text("Add books") },
+                onClick = {
+                    open = false
+                    actions.onImport()
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Add an audiobook") },
+                onClick = {
+                    open = false
+                    addAudiobook()
+                },
+            )
+        }
     }
 }
 

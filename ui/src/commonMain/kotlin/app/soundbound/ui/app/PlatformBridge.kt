@@ -15,6 +15,14 @@ interface PlatformBridge {
     /** Opens the system file picker and copies whatever is chosen into app storage. */
     suspend fun pickBooks(): List<BookFileHandle>
 
+    /**
+     * Picks audio files for one audiobook.
+     *
+     * Separate from [pickBooks] because the picker has to allow a different set of types, and
+     * because everything chosen in one go becomes a single book rather than one each.
+     */
+    suspend fun pickAudiobookFiles(): List<BookFileHandle> = emptyList()
+
     /** Opens a folder picker, for choosing where exports go. */
     suspend fun pickFolder(title: String): File?
 
@@ -51,6 +59,7 @@ interface PlatformBridge {
 /** A bridge that does nothing, for previews and tests. */
 object NoOpPlatformBridge : PlatformBridge {
     override suspend fun pickBooks(): List<BookFileHandle> = emptyList()
+    override suspend fun pickAudiobookFiles(): List<BookFileHandle> = emptyList()
     override suspend fun pickFolder(title: String): File? = null
     override suspend fun pickVoiceFiles(): List<File> = emptyList()
     override suspend fun pickTextFile(): String? = null

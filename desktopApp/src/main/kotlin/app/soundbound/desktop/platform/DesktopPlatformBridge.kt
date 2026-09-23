@@ -1,5 +1,6 @@
 package app.soundbound.desktop.platform
 
+import app.soundbound.core.audiobook.AudioFormats
 import app.soundbound.core.book.BookFileHandle
 import app.soundbound.core.session.LocalFileHandle
 import app.soundbound.ui.app.PlatformBridge
@@ -46,6 +47,45 @@ class DesktopPlatformBridge(
         chooser.selectedFiles
             .also { files -> files.firstOrNull()?.parentFile?.let { lastBookDirectory = it } }
             .filter { it.isFile }
+            .map { LocalFileHandle(it) }
+    }
+
+    /**
+     * Picks the audio files of one audiobook.
+     *
+     * A whole folder can be chosen as well as a set of files, because that is how an audiobook
+     * usually arrives — forty numbered MP3s in a directory named after the book — and selecting
+     * them one at a time would be miserable.
+     */
+    override suspend fun pickAudiobookFiles(): List<BookFileHandle> = withContext(Dispatchers.Main) {
+        val chooser = JFileChooser(lastBookDirectory ?: defaultDocumentsDirectory()).apply {
+            dialogTitle = "Add an audiobook"
+            isMultiSelectionEnabled = true
+            fileSelectionMode = JFileChooser.FILES_AND_DIRECTORIES
+            addChoosableFileFilter(
+                FileNameExtensionFilter(
+                    "Audio (MP3, M4B, WAV)",
+                    "mp3", "m4a", "m4b", "aac", "ogg", "oga", "opus", "flac", "wav", "wma",
+                ),
+            )
+            isAcceptAllFileFilterUsed = true
+            fileFilter = choosableFileFilters.first()
+        }
+
+        if (chooser.showOpenDialog(null) != JFileChooser.APPROVE_OPTION) return@withContext emptyList()
+        val chosen = chooser.selectedFiles
+        chosen.firstOrNull()?.let { lastBookDirectory = if (it.isDirectory) it else it.parentFile }
+
+        // A chosen directory becomes the files inside it, one level down — an audiobook's files
+        // sit together, and recursing would sweep in a whole music library by accident.
+        chosen.flatMap { file ->
+            when {
+                file.isDirectory -> file.listFiles()?.filter { it.isFile }?.sortedBy { it.name }.orEmpty()
+                file.isFile -> listOf(file)
+                else -> emptyList()
+            }
+        }
+            .filter { AudioFormats.isAudio(it.name) }
             .map { LocalFileHandle(it) }
     }
 

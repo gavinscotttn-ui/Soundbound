@@ -36,6 +36,7 @@ class AndroidPlatformBridge(
 ) : PlatformBridge {
 
     private var pendingBooks: CompletableDeferred<List<Uri>>? = null
+    private var pendingAudio: CompletableDeferred<List<Uri>>? = null
     private var pendingVoices: CompletableDeferred<List<Uri>>? = null
     private var pendingTree: CompletableDeferred<Uri?>? = null
     private var pendingText: CompletableDeferred<Uri?>? = null
@@ -47,6 +48,12 @@ class AndroidPlatformBridge(
         activity.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             pendingBooks?.complete(uris.orEmpty())
             pendingBooks = null
+        }
+
+    private val openAudio: ActivityResultLauncher<Array<String>> =
+        activity.registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+            pendingAudio?.complete(uris.orEmpty())
+            pendingAudio = null
         }
 
     private val openVoices: ActivityResultLauncher<Array<String>> =
@@ -79,6 +86,27 @@ class AndroidPlatformBridge(
         val launched = runCatching { openBooks.launch(BOOK_MIME_TYPES) }.isSuccess
         if (!launched) {
             pendingBooks = null
+            showMessage("No file picker is available on this device.")
+            return emptyList()
+        }
+        val uris = deferred.await()
+        return withContext(Dispatchers.IO) { uris.mapNotNull(::copyIntoLibrary) }
+    }
+
+    /**
+     * Picks the audio files of one audiobook.
+     *
+     * The files are copied into app storage like any other import. That costs disk — an
+     * audiobook is large — but it is what makes the book keep working: a content URI granted by
+     * a picker is not guaranteed to survive a reboot, and a book that plays today and cannot be
+     * found next week is worse than one that took a minute to add.
+     */
+    override suspend fun pickAudiobookFiles(): List<BookFileHandle> {
+        val deferred = CompletableDeferred<List<Uri>>()
+        pendingAudio = deferred
+        val launched = runCatching { openAudio.launch(AUDIO_MIME_TYPES) }.isSuccess
+        if (!launched) {
+            pendingAudio = null
             showMessage("No file picker is available on this device.")
             return emptyList()
         }
@@ -283,6 +311,18 @@ class AndroidPlatformBridge(
          * (It is spelled out in the list below rather than here, because the wildcard's own
          * characters would close this comment.)
          */
+        /**
+         * Audio types offered when adding an audiobook.
+         *
+         * The catch-all is here for the same reason as in the book list below: plenty of file
+         * managers report an M4B as an unknown type, and a picker that will not show the user's
+         * own audiobooks is useless.
+         */
+        val AUDIO_MIME_TYPES = arrayOf(
+            "audio/*",
+            "application/octet-stream",
+        )
+
         val BOOK_MIME_TYPES = arrayOf(
             "application/epub+zip",
             "application/pdf",
