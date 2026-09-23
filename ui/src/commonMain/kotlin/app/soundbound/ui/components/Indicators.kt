@@ -18,8 +18,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -309,10 +315,10 @@ fun TimelineScrubber(
     enabled: Boolean = true,
 ) {
     val accents = LocalAccents.current
-    var dragging by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
-    var dragged by androidx.compose.runtime.remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    var dragged by remember { mutableFloatStateOf(0f) }
 
-    androidx.compose.material3.Slider(
+    Slider(
         value = if (dragging) dragged else fraction.coerceIn(0f, 1f),
         onValueChange = {
             dragging = true
@@ -323,7 +329,7 @@ fun TimelineScrubber(
             onSeek(dragged)
         },
         enabled = enabled,
-        colors = androidx.compose.material3.SliderDefaults.colors(
+        colors = SliderDefaults.colors(
             thumbColor = accents.speaking,
             activeTrackColor = accents.speaking,
             inactiveTrackColor = accents.progressTrack,
